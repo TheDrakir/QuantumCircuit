@@ -49,6 +49,12 @@ class Quantum:
             return other * self
         else:
             return NotImplemented
+    
+    def __neg__(self):
+        return Quantum([-element for element in self.vector])
+    
+    def __pos__(self):
+        return Quantum(self.vector[:])
         
     def __matmul__(self, other):
         prodVector = []

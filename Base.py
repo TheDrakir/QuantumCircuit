@@ -3,6 +3,7 @@ from math import sqrt
 from Quantum import Quantum
 from Storage import *
 
+
 class Base:
     '''Defines a base of an n-dimensional qubit space.'''
 
@@ -12,7 +13,7 @@ class Base:
         if not self.isBase:
             raise Exception("This is not a base.")
 
-    #isBase rules out some but not all non-base objects
+    # isBase rules out some but not all non-base objects
     def isBase(self):
         k = len(self.vector[0])
         if 2**k != len(self.vector):
@@ -27,6 +28,7 @@ class Base:
         for base_element in self.vector:
             string += str(base_element) + ", "
         return "(" + string[:-2] + ")"
+
 
 class OrthoNormalBase(Base):
     '''Defines an orthonormal base.'''
@@ -45,11 +47,15 @@ class OrthoNormalBase(Base):
         if qBitCount == 1:
             return OrthoNormalBase([ZERO, ONE])
         else:
-            last = OrthoNormalBase.std_base(qBitCount - 1)
-            return OrthoNormalBase([ZERO @ element for element in last.vector] + [ONE @ element for element in last.vector])
+            last = OrthoNormalBase.stdBase(qBitCount - 1)
+            return OrthoNormalBase([ZERO @ element for element in last.vector]
+                                   + [ONE @ element for element in last.vector])
 
     @staticmethod
-    def bell_base():
-        return Base([1/sqrt(2)*(ZERO @ ZERO + ONE @ ONE), 1/sqrt(2)*(ZERO @ ZERO - ONE @ ONE), 1/sqrt(2)*(ZERO @ ONE + ONE @ ZERO), 1/sqrt(2)*(ZERO @ ONE - ONE @ ZERO)])
+    def bellBase():
+        return Base([1/sqrt(2)*(ZERO @ ZERO + ONE @ ONE),
+                     1/sqrt(2)*(ZERO @ ZERO - ONE @ ONE),
+                     1/sqrt(2)*(ZERO @ ONE + ONE @ ZERO),
+                     1/sqrt(2)*(ZERO @ ONE - ONE @ ZERO)])
 
 
