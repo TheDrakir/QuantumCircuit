@@ -69,6 +69,6 @@ X = strg._create_constant(GateType('X', ORANGE, LT_X))
 Y = strg._create_constant(GateType('Y', GREEN, LT_Y))
 Z = strg._create_constant(GateType('Z', TEAL, LT_Z))
 CNOT = strg._create_constant(GateType('+', CYAN, LT_CNOT, control=True))
-CZ = strg._create_constant(GateType('Z', PINK, LT_CZ, control=True))
+CZ = strg._create_constant(GateType('CZ', PINK, LT_CZ, control=True))
 GATE_TYPES = [H, X, Y, Z, CNOT, CZ]
 

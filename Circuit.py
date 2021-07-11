@@ -35,22 +35,37 @@ class Circuit:
     def deserialize_gates():
         with open(INPUT_FILE_NAME, "r") as f:
             content = json.load(f)
+            num_qubits = 3 #content["qubits"]
             primitive_linear_transformations = []
-            for gate_type, coords in content.items():
+            for gate_type, coords in content["gates"].items():
                 for coord in coords:
-                    primitive_linear_transformations += [Circuit.gate_to_linear_transformation(gate_type, coords)]
-             
-        print(content)
+                    primitive_linear_transformations += [Circuit.gate_to_linear_transformation(gate_type, coord)]
+        primitive_linear_transformations.sort(key = lambda x: x[1])
+        primitive_linear_transformations = [x[0] for x in primitive_linear_transformations]
+        return Circuit(num_qubits, primitive_linear_transformations)
 
     @staticmethod
-    def gate_to_linear_transformation(gate_type, coords):
-        return #Hier habe ich aufgehört, zu arbeiten.
+    def gate_to_linear_transformation(gate_type, coord):
+        qubit = coord[0]
+        slot = coord[1]
+        linear_transformation = strg[gate_type].linear_transformation
+        return [(linear_transformation, [qubit]), slot]
+
+    def __str__(self):
+        string = str(self.qubit_count) + "\n"
+        for linear_transformation in self.linear_transformations:
+            string = string + str(linear_transformation) + "\n"
+        return ""
 
 
 
-LT_INV_CX = Circuit(2, [(LT_H, [1]), (LT_CZ, [0, 1]), (LT_H, [1])]).gate()
 
-print(LT_CZ)
-print(LT_INV_CX)
+# LT_INV_CX = Circuit(2, [(LT_H, [1]), (LT_CZ, [0, 1]), (LT_H, [1])]).gate()
 
-Circuit.deserialize_gates()
+# print(LT_CZ)
+# print(LT_INV_CX)
+
+
+
+P = Circuit.deserialize_gates()
+print(P.gate())

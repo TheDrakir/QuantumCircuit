@@ -304,13 +304,13 @@ class CircuitBuilder:
                         return
 
     def serialize_gates(self):
-        content = {}
+        content = {"qubits": self.num_qubits, "gates": {}}
         for gate_type in GATE_TYPES:
-            content[gate_type.name] = []
+            content["gates"][gate_type.name] = []
         for qubit, row in enumerate(self.gates):
             for slot, gate in enumerate(row):
                 if gate != None:
-                    content[gate.gate_type.name] += [[qubit, slot]]
+                    content["gates"][gate.gate_type.name] += [[qubit, slot]]
         with open(self.input_file_name, 'w', encoding='utf-8') as f:
             json.dump(content, f, ensure_ascii=False, indent=4)
 

@@ -103,4 +103,4 @@ class Quantum:
                 phi = 0
             else:
                 phi = phase(self.vector[1] / sin(theta / 2))
-        return myRound(theta), myRound(phi)
+        return my_round(theta), my_round(phi)
