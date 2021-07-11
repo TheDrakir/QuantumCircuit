@@ -1,7 +1,7 @@
-SIGNIFICANT_DEZ = 4
+SIGNIFICANT_DEC = 4
 
 def myRound(x):
-    return round(x, SIGNIFICANT_DEZ)
+    return round(x, SIGNIFICANT_DEC)
 
 def myRoundComplex(x):
     return complex(myRound(x.real), myRound(x.imag))
