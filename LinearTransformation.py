@@ -1,6 +1,3 @@
-from math import sqrt
-import numpy as np
-
 from Quantum import Quantum
 from MyMath import my_complex_to_str, my_int_to_qubits
 

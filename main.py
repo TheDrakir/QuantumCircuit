@@ -2,6 +2,7 @@ import pygame
 import json
 
 from Storage import *
+from Circuit import *
 
 pygame.init()
 
@@ -326,6 +327,10 @@ class CircuitBuilder:
                 pos = (slot, num), (x, y)
                 saved_gate.place(pos)
 
+    def run_circuit(self):
+        current_circuit = Circuit.deserialize_gates()
+        print(current_circuit.gate())
+
                 
 
 
@@ -343,8 +348,12 @@ while running:
         elif event.type == pygame.MOUSEBUTTONUP:
             builder.mouse_up()
         elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_s and pygame.key.get_mods() & pygame.KMOD_CTRL:
-                builder.serialize_gates()
+            if pygame.key.get_mods() & pygame.KMOD_CTRL:
+                if event.key == pygame.K_s:
+                    builder.serialize_gates()
+                elif event.key == pygame.K_p:
+                    builder.serialize_gates()
+                    builder.run_circuit()
 
     screen.fill((255, 255, 255))
     builder.update(pygame.mouse.get_pos())

@@ -1,9 +1,7 @@
 import json
 from os import stat
 
-from Quantum import Quantum
 from LinearTransformation import LinearTransformation
-from Base import Base
 from Storage import *
 
 
@@ -18,6 +16,7 @@ class Circuit:
         self.qubit_count = qubit_count
         self.dimension = 2**qubit_count
         self.primitive_linear_transformations = primitive_linear_transformations
+        print(self)
         self.set_linear_transformations()
 
     def set_linear_transformations(self):
@@ -36,7 +35,7 @@ class Circuit:
         # Das Auslesen aus der json-Datei funktioniert nur für 1-dimensionale gates.
         with open(INPUT_FILE_NAME, "r") as f:
             content = json.load(f)
-            num_qubits = 3 #content["qubits"]
+            num_qubits = content["qubits"]
             primitive_linear_transformations = []
             for gate_type, coords in content["gates"].items():
                 for coord in coords:
@@ -53,10 +52,12 @@ class Circuit:
         return [(linear_transformation, qubits), slot]
 
     def __str__(self):
-        string = str(self.qubit_count) + "\n"
-        for linear_transformation in self.linear_transformations:
-            string = string + str(linear_transformation) + "\n"
-        return ""
+        string = "[" + str(self.qubit_count) + ", ["
+        for linear_transformation, qubit_indizes in self.primitive_linear_transformations:
+            string += "(" + str(linear_transformation.qubit_count) + ", " + str(qubit_indizes) + "), "
+        string = string[:-2] + "]"
+        return string
+
 
 
 
@@ -68,5 +69,5 @@ class Circuit:
 
 
 
-P = Circuit.deserialize_gates()
-print(P.gate())
+# P = Circuit.deserialize_gates()
+# print(P.gate())

@@ -15,8 +15,8 @@ def my_complex_to_str(x):
     else:
         return str(x)
 
-def my_int_to_qubits(n, qBitCount):
+def my_int_to_qubits(n, qubit_count):
     string = str(bin(n))[2:]
-    while len(string) < qBitCount:
+    while len(string) < qubit_count:
         string = "0" + string
     return string
