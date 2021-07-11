@@ -1,13 +1,13 @@
 SIGNIFICANT_DEZ = 4
 
-def myRound(x):
+def my_round(x):
     return round(x, SIGNIFICANT_DEZ)
 
-def myRoundComplex(x):
-    return complex(myRound(x.real), myRound(x.imag))
+def my_round_complex(x):
+    return complex(my_round(x.real), my_round(x.imag))
 
-def myComplexToStr(x):
-    x = myRoundComplex(x)
+def my_complex_to_str(x):
+    x = my_round_complex(x)
     if x.imag == 0:
         return str(x.real)
     elif x.real == 0:
@@ -15,7 +15,7 @@ def myComplexToStr(x):
     else:
         return str(x)
 
-def myIntToQBits(n, qBitCount):
+def my_int_to_qubits(n, qBitCount):
     string = str(bin(n))[2:]
     while len(string) < qBitCount:
         string = "0" + string

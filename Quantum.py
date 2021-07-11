@@ -1,9 +1,11 @@
 from math import acos, sin, pi, sqrt
-from MyMath import myRound, myComplexToStr, myIntToQBits
+from MyMath import my_round, my_complex_to_str, my_int_to_qubits
 from cmath import phase
 
 
 class Quantum:
+    '''Defines an n qubits.'''
+
     def __init__(self, vector, name = None):
         self.vector = [complex(element) for element in vector]
         self.name = name
@@ -77,7 +79,7 @@ class Quantum:
         string = ""
         for i, scalar in enumerate(self.vector):
             if scalar != 0:
-                string += myComplexToStr(scalar) + " |" + myIntToQBits(i, self.qBitCount) + "> + "
+                string += my_complex_to_str(scalar) + " |" + my_int_to_qubits(i, self.qBitCount) + "> + "
         if len(string) < 2:
             return ""
         return string[:-2]

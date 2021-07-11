@@ -2,14 +2,16 @@ from math import sqrt
 import numpy as np
 
 from Quantum import Quantum
-from MyMath import myComplexToStr, myIntToQBits
+from MyMath import my_complex_to_str, my_int_to_qubits
 
 class LinearTransformation:
+    '''Defines a linear transformation from an n-qubit vectorspace to itself.'''
+
     def __init__(self, array, name = None):
         self.array = array
         self.name = name
         self.validate()
-        self.setQBitCount()
+        self.set_qubit_count()
 
     def validate(self):
         for row in self.array:
@@ -21,10 +23,10 @@ class LinearTransformation:
         if 2**i != len(self):
             raise ValueError("Size of input space is not a power of two.")
 
-    def setQBitCount(self):
-        self.qBitCount = 0
-        while 2**self.qBitCount < len(self):
-            self.qBitCount += 1
+    def set_qubit_count(self):
+        self.qubit_count = 0
+        while 2**self.qubit_count < len(self):
+            self.qubit_count += 1
 
     def __len__(self):
         return len(self.array)
@@ -62,31 +64,31 @@ class LinearTransformation:
             newArray += [row]
         return LinearTransformation(newArray)
 
-    def fillQbits(self, n, indizes):
+    def fill_qubits(self, n, indizes):
         if 2**n < len(self):
             raise ValueError("Linear transformation has length of more than 2**n already.")
-        newLinearTransformation = LinearTransformation.zero(2**n)
-        indMap = []
-        revIndMap = {}
+        new_linear_transformation = LinearTransformation.zero(2**n)
+        ind_map = []
+        rev_ind_map = {}
         for ind in range(len(self)):
-            string = myIntToQBits(ind, self.qBitCount)
+            string = my_int_to_qubits(ind, self.qubit_count)
             newInd = 0
-            for exp in range(self.qBitCount):
+            for exp in range(self.qubit_count):
                 if string[-exp-1] == "1":
                     newInd += 2**indizes[exp]
-            indMap += [newInd]
-            revIndMap[newInd] = ind
-        newIndMap = []
-        for ind in range(len(newLinearTransformation)):
-            string = myIntToQBits(ind, newLinearTransformation.qBitCount)
+            ind_map += [newInd]
+            rev_ind_map[newInd] = ind
+        new_ind_map = []
+        for ind in range(len(new_linear_transformation)):
+            string = my_int_to_qubits(ind, new_linear_transformation.qubit_count)
             for exp in range(len(string)):
                 if len(string) - exp - 1 in indizes:
                     string = string[:exp] + "0" + string[exp + 1:]
-            newIndMap.append(int(string, 2))
-        for newJ in range(len(newLinearTransformation)):
+            new_ind_map.append(int(string, 2))
+        for newJ in range(len(new_linear_transformation)):
             for i in range(len(self)):
-                newLinearTransformation.array[indMap[i] + newIndMap[newJ]][newJ] = self.array[i][revIndMap[newJ - newIndMap[newJ]]]
-        return newLinearTransformation
+                new_linear_transformation.array[ind_map[i] + new_ind_map[newJ]][newJ] = self.array[i][rev_ind_map[newJ - new_ind_map[newJ]]]
+        return new_linear_transformation
 
     def __str__(self):
         string = ""
@@ -99,7 +101,7 @@ class LinearTransformation:
                 start, end = "|", "|\n"
             string += start
             for num in row:
-                string += f"{myComplexToStr(num)!s:<10} "
+                string += f"{my_complex_to_str(num)!s:<10} "
             string += end
         return string
 

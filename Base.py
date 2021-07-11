@@ -4,6 +4,8 @@ from Quantum import Quantum
 from Storage import *
 
 class Base:
+    '''Defines a base of an n-dimensional qubit space.'''
+
     def __init__(self, vector, name = None):
         self.vector = vector
         self.name = name
@@ -15,37 +17,39 @@ class Base:
         k = len(self.vector[0])
         if 2**k != len(self.vector):
             return False
-        for baseElement in self.vector:
-            if len(baseElement) != k:
+        for base_element in self.vector:
+            if len(base_element) != k:
                 return False
         return True
 
     def __str__(self):
         string = ""
-        for baseElement in self.vector:
-            string += str(baseElement) + ", "
+        for base_element in self.vector:
+            string += str(base_element) + ", "
         return "(" + string[:-2] + ")"
 
 class OrthoNormalBase(Base):
-    def isOrthoNormalBase(self):
-        for i1, baseElement1 in self.vector:
-            if abs(baseElement1) != 1:
+    '''Defines an orthonormal base.'''
+
+    def is_ortho_normal_base(self):
+        for i1, base_element1 in self.vector:
+            if abs(base_element1) != 1:
                 return False
-            for i2, baseElement2 in self.vector[i1+1:]:
-                if baseElement1 * baseElement2 != 0:
+            for i2, base_element2 in self.vector[i1+1:]:
+                if base_element1 * base_element2 != 0:
                     return False
         return True
 
     @staticmethod
-    def stdBase(qBitCount):
+    def std_base(qBitCount):
         if qBitCount == 1:
             return OrthoNormalBase([ZERO, ONE])
         else:
-            last = OrthoNormalBase.stdBase(qBitCount - 1)
+            last = OrthoNormalBase.std_base(qBitCount - 1)
             return OrthoNormalBase([ZERO @ element for element in last.vector] + [ONE @ element for element in last.vector])
 
     @staticmethod
-    def bellBase():
+    def bell_base():
         return Base([1/sqrt(2)*(ZERO @ ZERO + ONE @ ONE), 1/sqrt(2)*(ZERO @ ZERO - ONE @ ONE), 1/sqrt(2)*(ZERO @ ONE + ONE @ ZERO), 1/sqrt(2)*(ZERO @ ONE - ONE @ ZERO)])
 
 

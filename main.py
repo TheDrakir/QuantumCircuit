@@ -1,7 +1,12 @@
 import pygame
+import json
 
+from Storage import *
 
 pygame.init()
+
+# set file name, which input data will be written to
+INPUT_FILE_NAME = "to_back.json"
 
 # set window size
 SCREEN_WIDTH = 1000
@@ -12,34 +17,6 @@ screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 # load standard font (can take up to a few seconds)
 FONT = pygame.font.SysFont('Arial', 70)
 
-# define colors
-WHITE = (255, 255, 255)
-GREY = (200, 200, 200)
-RED = (219, 42, 42)
-ORANGE = (219, 163, 42)
-GREEN = (151, 219, 42)
-TEAL = (42, 219, 160)
-CYAN = (42, 219, 219)
-BLUE = (42, 89, 219)
-PURPLE = (148, 42, 219)
-PINK = (219, 42, 154)
-
-
-class GateType:
-    """Stores a type of gate."""
-
-    def __init__(self, name, color, control=False):
-        self.name = name
-        self.color = color
-        self.control = control
-
-
-H = GateType('H', RED)
-X = GateType('X', ORANGE)
-Y = GateType('Y', GREEN)
-Z = GateType('Z', TEAL)
-CNOT = GateType('+', CYAN, control=True)
-CZ = GateType('Z', PINK, control=True)
 
 
 class Control:
@@ -164,7 +141,8 @@ BLOCKED = Blocked()
 
 class CircuitBuilder:
 
-    def __init__(self):
+    def __init__(self, input_file_name):
+        self.input_file_name = input_file_name
         self.width = SCREEN_WIDTH - 200
         self.ytop = 250
         self.ystep = 100
@@ -325,8 +303,19 @@ class CircuitBuilder:
                         self._set_overlap(i, j, None)
                         return
 
+    def serialize_gates(self):
+        content = {}
+        for gate_type in GATE_TYPES:
+            content[gate_type.name] = []
+        for qubit, row in enumerate(self.gates):
+            for slot, gate in enumerate(row):
+                if gate != None:
+                    content[gate.gate_type.name] += [[qubit, slot]]
+        with open(self.input_file_name, 'w', encoding='utf-8') as f:
+            json.dump(content, f, ensure_ascii=False, indent=4)
 
-builder = CircuitBuilder()
+
+builder = CircuitBuilder(INPUT_FILE_NAME)
 builder.rect.topleft = (100, 100)
 
 running = True
@@ -338,6 +327,9 @@ while running:
             builder.mouse_down(event.pos)
         elif event.type == pygame.MOUSEBUTTONUP:
             builder.mouse_up()
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_s and pygame.key.get_mods() & pygame.KMOD_CTRL:
+                builder.serialize_gates()
 
     screen.fill((255, 255, 255))
     builder.update(pygame.mouse.get_pos())
