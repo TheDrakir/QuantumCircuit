@@ -55,7 +55,3 @@ class OrthoNormalBase(Base):
                      1/sqrt(2)*(ZERO @ ONE - ONE @ ZERO)])
 
 
-std = OrthoNormalBase.stdBase(3)
-for i in std.vector:
-    print(i)
-print(std)
