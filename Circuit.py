@@ -33,6 +33,7 @@ class Circuit:
 
     @staticmethod
     def deserialize_gates():
+        # Das Auslesen aus der json-Datei funktioniert nur für 1-dimensionale gates.
         with open(INPUT_FILE_NAME, "r") as f:
             content = json.load(f)
             num_qubits = 3 #content["qubits"]
@@ -46,10 +47,10 @@ class Circuit:
 
     @staticmethod
     def gate_to_linear_transformation(gate_type, coord):
-        qubit = coord[0]
+        qubits = coord[0]
         slot = coord[1]
         linear_transformation = strg[gate_type].linear_transformation
-        return [(linear_transformation, [qubit]), slot]
+        return [(linear_transformation, qubits), slot]
 
     def __str__(self):
         string = str(self.qubit_count) + "\n"

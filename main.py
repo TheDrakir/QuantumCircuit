@@ -41,7 +41,8 @@ class Gate:
     PLACED = 3
     GRABBED = 4
 
-    def __init__(self, gate_type: GateType, pos: tuple[int, int] = (0, 0)):
+    def __init__(self, circuit_builder, gate_type: GateType, pos: tuple[int, int] = (0, 0)):
+        self.circuit_builder = circuit_builder
         self.gate_type = gate_type
         self.surf = pygame.Surface((Gate.SIZE, Gate.SIZE))
         self.rect = self.surf.get_rect()
@@ -57,8 +58,7 @@ class Gate:
             self.control = control
         self.offset = offset
         self.ystep = ystep
-        self.surf = pygame.Surface(
-            (Gate.SIZE, Gate.SIZE+ystep*abs(offset)), pygame.SRCALPHA)
+        self.surf = pygame.Surface((Gate.SIZE, Gate.SIZE+ystep*abs(offset)), pygame.SRCALPHA)
         self.rect.h = Gate.SIZE+ystep*abs(offset)
         if offset < 0:
             self.rect.y -= ystep * abs(offset)
@@ -76,22 +76,16 @@ class Gate:
 
     def redraw(self):
         if self.control is not None:
-            pygame.draw.circle(
-                self.surf, self.gate_type.color, self.control.midpoint,
-                self.control.radius)
-            pygame.draw.line(self.surf, self.gate_type.color,
-                             self.control.midpoint,
-                             (Gate.SIZE/2, self.gatey+Gate.SIZE/2), width=5)
+            pygame.draw.circle(self.surf, self.gate_type.color, self.control.midpoint, self.control.radius)
+            pygame.draw.line(self.surf, self.gate_type.color, self.control.midpoint, (Gate.SIZE/2, self.gatey+Gate.SIZE/2), width=5)
 
         img = FONT.render(self.gate_type.name, True, WHITE)
         width, height = img.get_size()
 
         if self.gate_type is CNOT:
-            pygame.draw.circle(self.surf, self.gate_type.color,
-                               (Gate.SIZE/2, self.gatey+Gate.SIZE/2), Gate.SIZE/2)
+            pygame.draw.circle(self.surf, self.gate_type.color, (Gate.SIZE/2, self.gatey+Gate.SIZE/2), Gate.SIZE/2)
         else:
-            pygame.draw.rect(self.surf, self.gate_type.color,
-                             (0, self.gatey, Gate.SIZE, Gate.SIZE))
+            pygame.draw.rect(self.surf, self.gate_type.color, (0, self.gatey, Gate.SIZE, Gate.SIZE))
         pos = ((Gate.SIZE-width)*0.5, self.gatey+(Gate.SIZE-height)*0.5)
         self.surf.blit(img, pos)
 
@@ -114,10 +108,14 @@ class Gate:
         self.grabx, self.graby = x - self.rect.x, y - self.rect.y
         self.redraw()
 
-    def place(self, pos: tuple[int, int]):
+    def place(self, pos):
+        (slot, num), (x, y) = pos
         self.state = Gate.PLACED
-        self.rect.topleft = pos
+        self.rect.topleft = x, y
         self.redraw()
+
+        self.circuit_builder.gates[num][slot] = self
+        self.circuit_builder._set_overlap(self, num, slot, BLOCKED)
 
     def update(self, pos):
         x, y = pos
@@ -154,7 +152,7 @@ class CircuitBuilder:
         # create the gate object for all gate types
         self.build_gates = []
         for i, g in enumerate(self.gate_types):
-            self.build_gates.append(Gate(g, pos=(100*i, 100)))
+            self.build_gates.append(Gate(self, g, pos=(100*i, 100)))
             if g.control:
                 self.build_gates[i].set_control(Control(), -1, self.ystep)
 
@@ -167,8 +165,7 @@ class CircuitBuilder:
                                5)
             self.qubits.append(Qubit(rect))
 
-        self.surf = pygame.Surface((self.width,
-                                   self.ytop + self.ystep*self.num_qubits))
+        self.surf = pygame.Surface((self.width, self.ytop + self.ystep*self.num_qubits))
         self.rect = self.surf.get_rect()
 
         self.gates = [[None] * self.num_slots for _ in range(self.num_qubits)]
@@ -231,21 +228,18 @@ class CircuitBuilder:
                 return False
             return True
 
-    def _set_overlap(self, num, slot, value):
-        if self.grabbed_gate.control is not None:
-            if self.grabbed_gate.offset < 0:
-                for n in range(num - abs(self.grabbed_gate.offset), num):
+    def _set_overlap(self, gate, num, slot, value):
+        if gate.control is not None:
+            if gate.offset < 0:
+                for n in range(num - abs(gate.offset), num):
                     self.gates[n][slot] = value
-            elif self.grabbed_gate.offset > 0:
-                for n in range(num+1, num+self.grabbed_gate.offset+1):
+            elif gate.offset > 0:
+                for n in range(num+1, num+gate.offset+1):
                     self.gates[n][slot] = value
 
     def mouse_up(self):
         if (pos := self._get_position()) is not None:
-            (slot, num), (x, y) = pos
-            self.grabbed_gate.place((x, y))
-            self.gates[num][slot] = self.grabbed_gate
-            self._set_overlap(num, slot, BLOCKED)
+            self.grabbed_gate.place(pos)
             self.grabbed_gate = None
             self.control_grabbed = False
             self.control_j = None
@@ -276,11 +270,9 @@ class CircuitBuilder:
             return
         for gate in self.build_gates:
             if gate.point_in(pos):
-                self.grabbed_gate = Gate(gate.gate_type, pos=(
-                    gate.rect.x, gate.rect.y + gate.gatey))
+                self.grabbed_gate = Gate(self, gate.gate_type, pos=(gate.rect.x, gate.rect.y + gate.gatey))
                 if gate.control is not None:
-                    self.grabbed_gate.set_control(
-                        Control(), gate.offset, self.ystep)
+                    self.grabbed_gate.set_control(Control(), gate.offset, self.ystep)
                 self.grabbed_gate.grab(pos)
                 return
         for i, row in enumerate(self.gates):
@@ -290,7 +282,7 @@ class CircuitBuilder:
                         self.grabbed_gate = gate
                         self.grabbed_gate.grab(pos)
                         self.gates[i][j] = None
-                        self._set_overlap(i, j, None)
+                        self._set_overlap(self.grabbed_gate, i, j, None)
                         self.control_grabbed = True
                         self.control_j = j
                         self.control_offset_start = gate.offset
@@ -300,7 +292,7 @@ class CircuitBuilder:
                         self.grabbed_gate = gate
                         self.grabbed_gate.grab(pos)
                         self.gates[i][j] = None
-                        self._set_overlap(i, j, None)
+                        self._set_overlap(self.grabbed_gate, i, j, None)
                         return
 
     def serialize_gates(self):
@@ -309,16 +301,39 @@ class CircuitBuilder:
             content["gates"][gate_type.name] = []
         for qubit, row in enumerate(self.gates):
             for slot, gate in enumerate(row):
-                if gate != None:
-                    content["gates"][gate.gate_type.name] += [[qubit, slot]]
+                if gate != None and gate != BLOCKED:
+                    if not gate.gate_type.control:
+                        content["gates"][gate.gate_type.name] += [[[qubit], slot]]
+                    else:
+                        content["gates"][gate.gate_type.name] += [[[qubit, qubit + gate.offset], slot]]
         with open(self.input_file_name, 'w', encoding='utf-8') as f:
             json.dump(content, f, ensure_ascii=False, indent=4)
+
+    def deserialize_gates(self):
+        with open(self.input_file_name, "r") as f:
+            content = json.load(f)
+        for gate_type_string, coords in content["gates"].items():
+            gate_type = strg[gate_type_string]
+            for coord in coords:
+                saved_gate = Gate(self, gate_type)
+                slot = coord[1]
+                num = coord[0][0]
+                if saved_gate.gate_type.control:
+                    saved_gate.set_control(Control(), -1, self.ystep)
+                    saved_gate.update_offset(coord[0][1] - coord[0][0])
+                x = slot*self.xstep
+                y = num*self.ystep + self.ytop + self.ystep/2 - saved_gate.SIZE/2-saved_gate.gatey
+                pos = (slot, num), (x, y)
+                saved_gate.place(pos)
+
+                
 
 
 builder = CircuitBuilder(INPUT_FILE_NAME)
 builder.rect.topleft = (100, 100)
 
 running = True
+builder.deserialize_gates()
 while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
