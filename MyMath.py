@@ -1,4 +1,4 @@
-SIGNIFICANT_DEZ = 4
+SIGNIFICANT_DEZ = 3
 
 def my_round(x, significant_dez = SIGNIFICANT_DEZ):
     return round(x, significant_dez)
@@ -7,13 +7,22 @@ def my_round_complex(x):
     return complex(my_round(x.real), my_round(x.imag))
 
 def my_complex_to_str(x):
+    real = str(int(x.real)) if int(x.real)==x.real else None
+    imag = str(int(x.imag)) if int(x.imag)==x.imag else None
     x = my_round_complex(x)
-    if x.imag == 0:
-        return str(x.real)
-    elif x.real == 0:
-        return str(x.imag) + "j"
+    if not real:
+        real = str(x.real)
+    if not imag:
+        real = str(x.imag)
+    if imag == '0':
+        return real
+    elif real == '0':
+        return imag + "i"
     else:
-        return str(x)
+        if x.imag > 0:
+            return real + "+" + imag+ "i"
+        else:
+            return real+ "-" + imag + "i"
 
 def my_int_to_qubits(n, qubit_count):
     string = str(bin(n))[2:]
