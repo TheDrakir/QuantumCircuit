@@ -30,6 +30,12 @@ class Control:
         midx, midy = self.midpoint
         return (x-midx)**2 + (y-midy)**2 <= self.radius**2
 
+class Node:
+    def __init__(self, gate, offset, main = True):
+        self.gate = gate
+        self.offset = offset
+        self.main = main
+
 
 class Gate:
     """Stores a graphical instance of a gate."""
@@ -44,6 +50,7 @@ class Gate:
 
     def __init__(self, circuit_builder, gate_type: GateType, pos: tuple[int, int] = (0, 0)):
         self.circuit_builder = circuit_builder
+        self.nodes = [Node(self, 0)]
         self.gate_type = gate_type
         self.surf = pygame.Surface((Gate.SIZE, Gate.SIZE))
         self.rect = self.surf.get_rect()
@@ -51,12 +58,14 @@ class Gate:
         self.gatey = 0
         self.control = None
         self.state = Gate.FIXED
+        self.inactive_count = 0
         self.redraw()
         self.grabx, self.graby = None, None
 
     def set_control(self, control, offset, ystep):
         if control is not None:
             self.control = control
+        self.nodes = self.nodes[:1] + [Node(self, offset, False)]
         self.offset = offset
         self.ystep = ystep
         self.surf = pygame.Surface((Gate.SIZE, Gate.SIZE+ystep*abs(offset)), pygame.SRCALPHA)
@@ -92,6 +101,8 @@ class Gate:
 
         if self.state == Gate.GRABBED:
             self.surf.set_alpha(150)
+        elif self.inactive_count > 0:
+            self.surf.set_alpha(80)
         else:
             self.surf.set_alpha(255)
 
@@ -113,22 +124,68 @@ class Gate:
         (slot, num), (x, y) = pos
         self.state = Gate.PLACED
         self.rect.topleft = x, y
-        self.redraw()
-
-        self.circuit_builder.gates[num][slot] = self
         self.circuit_builder._set_overlap(self, num, slot, BLOCKED)
+        self.inactive_count = 0
+        for node in self.nodes:
+            qubit = self.circuit_builder.qubits[num + node.offset]
+            if qubit.state == Qubit.INACTIVE:
+                self.inactive_count += 1
+        self.redraw()
 
     def update(self, pos):
         x, y = pos
         self.rect.x, self.rect.y = x - self.grabx, y - self.graby
 
+    def activate(self):
+        self.inactive_count -= 1
+        self.redraw()
+
+    def deactivate(self):
+        self.inactive_count += 1
+        self.redraw()
+
+
 
 class Qubit:
+    ACTIVE = 0
+    INACTIVE = 1
 
-    def __init__(self, rect: pygame.Rect):
+    def __init__(self, circuit_builder, index, rect: pygame.Rect):
+        self.circuit_builder = circuit_builder
+        self.index = index
         self.surf = pygame.Surface(rect.size)
         self.surf.fill(GREY)
         self.rect = rect
+        self.state = Qubit.ACTIVE
+
+    def redraw(self):
+        if self.state == Qubit.INACTIVE:
+            self.surf.set_alpha(100)
+        else:
+            self.surf.set_alpha(255)
+
+    def activate(self):
+        self.state = Qubit.ACTIVE
+        for node in self.circuit_builder.circuitNodes[self.index]:
+            if node != None and node != BLOCKED:
+                gate = node.gate
+                gate.activate()
+        self.redraw()
+
+    def deactivate(self):
+        self.state = Qubit.INACTIVE
+        for node in self.circuit_builder.circuitNodes[self.index]:
+            if node != None and node != BLOCKED:
+                gate = node.gate
+                gate.deactivate()
+        self.redraw()
+
+    def toggle(self):
+        if self.state == Qubit.ACTIVE:
+            self.deactivate()
+        else:
+            self.activate()
+
 
 
 class Blocked:
@@ -160,16 +217,13 @@ class CircuitBuilder:
         self.num_qubits = 5
         self.qubits = []
         for i in range(self.num_qubits):
-            rect = pygame.Rect(0,
-                               self.ytop+self.ystep*(i+0.5)-5/2,
-                               self.width,
-                               5)
-            self.qubits.append(Qubit(rect))
+            rect = pygame.Rect(0, self.ytop+self.ystep*(i+0.5)-5/2, self.width, 5)
+            self.qubits.append(Qubit(self, i, rect))
 
         self.surf = pygame.Surface((self.width, self.ytop + self.ystep*self.num_qubits))
         self.rect = self.surf.get_rect()
 
-        self.gates = [[None] * self.num_slots for _ in range(self.num_qubits)]
+        self.circuitNodes = [[None] * self.num_slots for _ in range(self.num_qubits)]
 
         self.grabbed_gate = None
         self.control_grabbed = False
@@ -183,9 +237,10 @@ class CircuitBuilder:
             self.surf.blit(qubit.surf, qubit.rect)
         for gate in self.build_gates:
             self.surf.blit(gate.surf, gate.rect)
-        for row in self.gates:
-            for gate in row:
-                if gate is not None and gate is not BLOCKED:
+        for row in self.circuitNodes:
+            for node in row:
+                if node is not None and node is not BLOCKED and node.main:
+                    gate = node.gate
                     self.surf.blit(gate.surf, gate.rect)
         if self.grabbed_gate is not None:
             if (pos := self._get_position()) is not None:
@@ -211,19 +266,19 @@ class CircuitBuilder:
 
     def _valid_position(self, num, slot):
         if self.grabbed_gate.control is None:
-            return self.gates[num][slot] is None
+            return self.circuitNodes[num][slot] is None
         else:
             if self.grabbed_gate.offset < 0:
                 if num < abs(self.grabbed_gate.offset):
                     return False
                 for n in range(num - abs(self.grabbed_gate.offset), num+1):
-                    if self.gates[n][slot] is not None:
+                    if self.circuitNodes[n][slot] is not None:
                         return False
             elif self.grabbed_gate.offset > 0:
                 if num + self.grabbed_gate.offset >= self.num_qubits:
                     return False
                 for n in range(num, num+self.grabbed_gate.offset+1):
-                    if self.gates[n][slot] is not None:
+                    if self.circuitNodes[n][slot] is not None:
                         return False
             else:
                 return False
@@ -232,22 +287,25 @@ class CircuitBuilder:
     def _set_overlap(self, gate, num, slot, value):
         if gate.control is not None:
             if gate.offset < 0:
-                for n in range(num - abs(gate.offset), num):
-                    self.gates[n][slot] = value
+                for n in range(num - abs(gate.offset) + 1, num):
+                    self.circuitNodes[n][slot] = value
             elif gate.offset > 0:
-                for n in range(num+1, num+gate.offset+1):
-                    self.gates[n][slot] = value
+                for n in range(num+1, num+gate.offset):
+                    self.circuitNodes[n][slot] = value
+        for node in gate.nodes:
+            if value == BLOCKED:
+                self.circuitNodes[num + node.offset][slot] = node
+            else:
+                self.circuitNodes[num + node.offset][slot] = value
 
     def mouse_up(self):
         if (pos := self._get_position()) is not None:
             self.grabbed_gate.place(pos)
-            self.grabbed_gate = None
             self.control_grabbed = False
             self.control_j = None
             self.control_offset_start = None
             self.gate_i = None
-        else:
-            self.grabbed_gate = None
+        self.grabbed_gate = None
 
     def update(self, pos):
         x, y = pos
@@ -276,13 +334,13 @@ class CircuitBuilder:
                     self.grabbed_gate.set_control(Control(), gate.offset, self.ystep)
                 self.grabbed_gate.grab(pos)
                 return
-        for i, row in enumerate(self.gates):
-            for j, gate in enumerate(row):
-                if gate is not None and gate is not BLOCKED:
+        for i, row in enumerate(self.circuitNodes):
+            for j, node in enumerate(row):
+                if node is not None and node is not BLOCKED and node.main:
+                    gate = node.gate
                     if gate.control is not None and gate.point_in_control(pos):
                         self.grabbed_gate = gate
                         self.grabbed_gate.grab(pos)
-                        self.gates[i][j] = None
                         self._set_overlap(self.grabbed_gate, i, j, None)
                         self.control_grabbed = True
                         self.control_j = j
@@ -292,27 +350,34 @@ class CircuitBuilder:
                     elif gate.point_in(pos):
                         self.grabbed_gate = gate
                         self.grabbed_gate.grab(pos)
-                        self.gates[i][j] = None
                         self._set_overlap(self.grabbed_gate, i, j, None)
                         return
 
     def serialize_gates(self):
-        content = {"qubits": self.num_qubits, "gates": {}}
+        content = {"qubits": [], "gates": {}}
+        for qubit in self.qubits:
+            if qubit.state == Qubit.ACTIVE:
+                content["qubits"] += [1]
+            else:
+                content["qubits"] += [0]
         for gate_type in GATE_TYPES:
             content["gates"][gate_type.name] = []
-        for qubit, row in enumerate(self.gates):
-            for slot, gate in enumerate(row):
-                if gate != None and gate != BLOCKED:
-                    if not gate.gate_type.control:
-                        content["gates"][gate.gate_type.name] += [[[qubit], slot]]
-                    else:
-                        content["gates"][gate.gate_type.name] += [[[qubit, qubit + gate.offset], slot]]
+        for qubit, row in enumerate(self.circuitNodes):
+            for slot, node in enumerate(row):
+                if node is not None and node is not BLOCKED and node.main:
+                    gate = node.gate
+                    content["gates"][gate.gate_type.name] += [[[qubit + node.offset for node in gate.nodes], slot, gate.inactive_count]]
         with open(self.input_file_name, 'w', encoding='utf-8') as f:
             json.dump(content, f, ensure_ascii=False, indent=4)
 
     def deserialize_gates(self):
         with open(self.input_file_name, "r") as f:
             content = json.load(f)
+        for qubit, active in enumerate(content["qubits"]):
+            if active == 1:
+                self.qubits[qubit].activate()
+            else:
+                self.qubits[qubit].deactivate()
         for gate_type_string, coords in content["gates"].items():
             gate_type = strg[gate_type_string]
             for coord in coords:
@@ -330,6 +395,9 @@ class CircuitBuilder:
     def run_circuit(self):
         current_circuit = Circuit.deserialize_gates()
         print(current_circuit.gate())
+
+    def toggle_qubit(self, index):
+        self.qubits[index].toggle()
 
                 
 
@@ -354,6 +422,16 @@ while running:
                 elif event.key == pygame.K_p:
                     builder.serialize_gates()
                     builder.run_circuit()
+            if event.key == pygame.K_1:
+                builder.toggle_qubit(0)
+            if event.key == pygame.K_2:
+                builder.toggle_qubit(1)
+            if event.key == pygame.K_3:
+                builder.toggle_qubit(2)
+            if event.key == pygame.K_4:
+                builder.toggle_qubit(3)
+            if event.key == pygame.K_5:
+                builder.toggle_qubit(4)
 
     screen.fill((255, 255, 255))
     builder.update(pygame.mouse.get_pos())

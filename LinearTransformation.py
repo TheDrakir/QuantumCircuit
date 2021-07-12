@@ -49,7 +49,7 @@ class LinearTransformation:
 
     def __matmul__(self, other):
         if len(self) != len(other):
-            raise ValueError("Matricies have wrong shape.")
+            raise ValueError("Matrices have wrong shape.")
         newArray = []
         for i in range(len(self)):
             row = []
@@ -80,7 +80,7 @@ class LinearTransformation:
             string = my_int_to_qubits(ind, new_linear_transformation.qubit_count)
             for exp in range(len(string)):
                 if len(string) - exp - 1 in indizes:
-                    string = string[:exp] + "0" + string[exp + 1:]
+                    string = string[:exp] + "0" + string[exp + 1:]  
             new_ind_map.append(int(string, 2))
         for newJ in range(len(new_linear_transformation)):
             for i in range(len(self)):

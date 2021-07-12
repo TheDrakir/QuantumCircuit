@@ -35,7 +35,7 @@ class Circuit:
         # Das Auslesen aus der json-Datei funktioniert nur für 1-dimensionale gates.
         with open(INPUT_FILE_NAME, "r") as f:
             content = json.load(f)
-            num_qubits = content["qubits"]
+            num_qubits = 2 #content["qubits"]
             primitive_linear_transformations = []
             for gate_type, coords in content["gates"].items():
                 for coord in coords:
