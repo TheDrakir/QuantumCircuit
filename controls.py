@@ -192,8 +192,8 @@ class MatrixEditor:
         visualw = sum(self.col_widths) + self.HGAP * \
             (self.width-1) + 2*self.SIDE
         visualh = self.VSPACE * self.height
-        self.matrix_rect = pygame.Rect(50, 50, visualw, visualh)
-        self.rect = pygame.Rect(pos[0], pos[1], visualw+100, visualh+100)
+        self.matrix_rect = pygame.Rect(50, 100, visualw, visualh)
+        self.rect = pygame.Rect(pos[0], pos[1], visualw+100, visualh+150)
         self.surf = Surface(self.rect.size)
 
         self.value_surfs = [[None] * self.width for _ in range(self.height)]
@@ -201,6 +201,8 @@ class MatrixEditor:
 
         self.hover = None
         self.selection = None
+
+        self.text_input = None
 
         for i, row in enumerate(self.values):
             for j, value in enumerate(row):
@@ -218,6 +220,11 @@ class MatrixEditor:
         for j in range(1, self.width):
             self.xcoords[j] = self.xcoords[j-1] + \
                 self.col_widths[j-1] + self.HGAP
+    
+    def mouse_down(self, pos):
+        pos = adjust_pos(pos, self.rect)
+        pass
+
 
     def draw(self):
         self.surf.fill(WHITE)
@@ -229,7 +236,7 @@ class MatrixEditor:
         pygame.draw.rect(self.surf, DARK, (x, y, cap, thick))
         pygame.draw.rect(self.surf, DARK, (x, y, thick, h))
         pygame.draw.rect(self.surf, DARK, (x, b-thick, cap, thick))
-        pygame.draw.rect(self.surf, DARK, (r-cap, x, cap, thick))
+        pygame.draw.rect(self.surf, DARK, (r-cap, y, cap, thick))
         pygame.draw.rect(self.surf, DARK, (r, y, thick, h))
         pygame.draw.rect(self.surf, DARK, (r-cap, b-thick, cap, thick))
 
