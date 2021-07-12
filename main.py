@@ -366,7 +366,7 @@ class CircuitBuilder:
             for slot, node in enumerate(row):
                 if node is not None and node is not BLOCKED and node.main:
                     gate = node.gate
-                    content["gates"][gate.gate_type.name] += [[[qubit + node.offset for node in gate.nodes], slot, gate.inactive_count]]
+                    content["gates"][gate.gate_type.name] += [[[qubit + node.offset for node in gate.nodes][::-1], slot, gate.inactive_count]]
         with open(self.input_file_name, 'w', encoding='utf-8') as f:
             json.dump(content, f, ensure_ascii=False, indent=4)
 

@@ -35,19 +35,26 @@ class Circuit:
         # Das Auslesen aus der json-Datei funktioniert nur für 1-dimensionale gates.
         with open(INPUT_FILE_NAME, "r") as f:
             content = json.load(f)
-            num_qubits = 2 #content["qubits"]
-            primitive_linear_transformations = []
-            for gate_type, coords in content["gates"].items():
-                for coord in coords:
-                    primitive_linear_transformations += [Circuit.gate_to_linear_transformation(gate_type, coord)]
+        active_qubits = content["qubits"]
+        num_qubits = 0
+        qubit_map = {}
+        for qubit, active in enumerate(active_qubits):
+            if active == 1:
+                qubit_map[qubit] = num_qubits
+                num_qubits += 1
+        primitive_linear_transformations = []
+        for gate_type, coords in content["gates"].items():
+            for coord in coords:
+                if coord[2] == 0:
+                    qubits = [qubit_map[qubit] for qubit in coord[0]]
+                    slot = coord[1]
+                    primitive_linear_transformations += [Circuit.gate_to_linear_transformation(gate_type, qubits, slot)]
         primitive_linear_transformations.sort(key = lambda x: x[1])
         primitive_linear_transformations = [x[0] for x in primitive_linear_transformations]
         return Circuit(num_qubits, primitive_linear_transformations)
 
     @staticmethod
-    def gate_to_linear_transformation(gate_type, coord):
-        qubits = coord[0]
-        slot = coord[1]
+    def gate_to_linear_transformation(gate_type, qubits, slot):
         linear_transformation = strg[gate_type].linear_transformation
         return [(linear_transformation, qubits), slot]
 
