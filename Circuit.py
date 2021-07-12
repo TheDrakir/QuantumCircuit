@@ -16,7 +16,6 @@ class Circuit:
         self.qubit_count = qubit_count
         self.dimension = 2**qubit_count
         self.primitive_linear_transformations = primitive_linear_transformations
-        print(self)
         self.set_linear_transformations()
 
     def set_linear_transformations(self):
@@ -64,7 +63,6 @@ class Circuit:
             string += "(" + str(linear_transformation.qubit_count) + ", " + str(qubit_indizes) + "), "
         string = string[:-2] + "]"
         return string
-
 
 
 

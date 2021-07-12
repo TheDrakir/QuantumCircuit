@@ -1,8 +1,13 @@
+from matplotlib.colors import TwoSlopeNorm
 import pygame
 import json
+import seaborn as sns
 
+from MyMath import my_round
 from Storage import *
 from Circuit import *
+
+
 
 pygame.init()
 
@@ -10,13 +15,16 @@ pygame.init()
 INPUT_FILE_NAME = "to_back.json"
 
 # set window size
-SCREEN_WIDTH = 1000
+SCREEN_WIDTH = 1500
 SCREEN_HEIGHT = 1000
+CIRCUIT_WIDTH = 1000
+
 pygame.display.set_caption("Quantum Circuit Builder")
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 
 # load standard font (can take up to a few seconds)
 FONT = pygame.font.SysFont('Arial', 70)
+TEXT_FONT = pygame.font.SysFont('Arial', 20)
 
 
 
@@ -166,6 +174,7 @@ class Qubit:
 
     def activate(self):
         self.state = Qubit.ACTIVE
+        self.circuit_builder.active_qubits += 1
         for node in self.circuit_builder.circuitNodes[self.index]:
             if node != None and node != BLOCKED:
                 gate = node.gate
@@ -174,6 +183,7 @@ class Qubit:
 
     def deactivate(self):
         self.state = Qubit.INACTIVE
+        self.circuit_builder.active_qubits -= 1
         for node in self.circuit_builder.circuitNodes[self.index]:
             if node != None and node != BLOCKED:
                 gate = node.gate
@@ -199,11 +209,15 @@ class CircuitBuilder:
 
     def __init__(self, input_file_name):
         self.input_file_name = input_file_name
-        self.width = SCREEN_WIDTH - 200
-        self.ytop = 250
+        self.ytop = 50
+        self.xleft = 50
+        self.width = SCREEN_WIDTH - 2 * self.xleft
+        self.height = SCREEN_HEIGHT - 2 * self.ytop
+        self.ytop_circuit = 400
+        self.circuit_width = CIRCUIT_WIDTH
         self.ystep = 100
         self.xstep = 100
-        self.num_slots = self.width // self.xstep
+        self.num_slots = self.circuit_width // self.xstep
 
         self.gate_types = [H, X, Y, Z, CNOT, CZ]
 
@@ -216,12 +230,15 @@ class CircuitBuilder:
 
         self.num_qubits = 5
         self.qubits = []
+        self.active_qubits = self.num_qubits
         for i in range(self.num_qubits):
-            rect = pygame.Rect(0, self.ytop+self.ystep*(i+0.5)-5/2, self.width, 5)
+            rect = pygame.Rect(0, self.ytop_circuit+self.ystep*(i+0.5)-5/2, self.circuit_width, 5)
             self.qubits.append(Qubit(self, i, rect))
-
-        self.surf = pygame.Surface((self.width, self.ytop + self.ystep*self.num_qubits))
+        self.pretty_matrices = []
+        self.pretty_matrices.append(PrettyMatrix(self, 300, [700, self.ytop]))
+        self.surf = pygame.Surface((self.width, self.height))
         self.rect = self.surf.get_rect()
+        self.rect.topleft = [self.xleft, self.ytop]
 
         self.circuitNodes = [[None] * self.num_slots for _ in range(self.num_qubits)]
 
@@ -237,6 +254,8 @@ class CircuitBuilder:
             self.surf.blit(qubit.surf, qubit.rect)
         for gate in self.build_gates:
             self.surf.blit(gate.surf, gate.rect)
+        for pretty_matrix in self.pretty_matrices:
+            self.surf.blit(pretty_matrix.surf, pretty_matrix.rect)
         for row in self.circuitNodes:
             for node in row:
                 if node is not None and node is not BLOCKED and node.main:
@@ -254,9 +273,9 @@ class CircuitBuilder:
     def _get_position(self):
         if (gate := self.grabbed_gate) is not None:
             slot = int((gate.rect.x+self.xstep/2)/self.xstep)
-            num = int((gate.rect.y+gate.gatey-self.ytop+self.ystep/2)/self.ystep)
+            num = int((gate.rect.y+gate.gatey-self.ytop_circuit+self.ystep/2)/self.ystep)
             x = slot*self.xstep
-            y = num*self.ystep + self.ytop + self.ystep/2 - gate.SIZE/2-gate.gatey
+            y = num*self.ystep + self.ytop_circuit + self.ystep/2 - gate.SIZE/2-gate.gatey
             if 0 <= slot < self.num_slots and 0 <= num < self.num_qubits:
                 if not self._valid_position(num, slot):
                     return None
@@ -305,6 +324,7 @@ class CircuitBuilder:
             self.control_j = None
             self.control_offset_start = None
             self.gate_i = None
+            builder.run_circuit()
         self.grabbed_gate = None
 
     def update(self, pos):
@@ -315,7 +335,7 @@ class CircuitBuilder:
             if not self.control_grabbed:
                 self.grabbed_gate.update(pos)
             else:
-                newi = int((y - self.ytop)/self.ystep)
+                newi = int((y - self.ytop_circuit)/self.ystep)
                 offset = newi - self.gate_i
                 old_offset = self.grabbed_gate.offset
                 self.grabbed_gate.update_offset(offset)
@@ -374,9 +394,7 @@ class CircuitBuilder:
         with open(self.input_file_name, "r") as f:
             content = json.load(f)
         for qubit, active in enumerate(content["qubits"]):
-            if active == 1:
-                self.qubits[qubit].activate()
-            else:
+            if active == 0:
                 self.qubits[qubit].deactivate()
         for gate_type_string, coords in content["gates"].items():
             gate_type = strg[gate_type_string]
@@ -388,25 +406,85 @@ class CircuitBuilder:
                     saved_gate.set_control(Control(), -1, self.ystep)
                     saved_gate.update_offset(coord[0][1] - coord[0][0])
                 x = slot*self.xstep
-                y = num*self.ystep + self.ytop + self.ystep/2 - saved_gate.SIZE/2-saved_gate.gatey
+                y = num*self.ystep + self.ytop_circuit + self.ystep/2 - saved_gate.SIZE/2-saved_gate.gatey
                 pos = (slot, num), (x, y)
                 saved_gate.place(pos)
 
     def run_circuit(self):
-        current_circuit = Circuit.deserialize_gates()
-        print(current_circuit.gate())
+        print(self.active_qubits)
+        if self.active_qubits != 0:
+            self.serialize_gates()
+            current_circuit = Circuit.deserialize_gates()
+            linear_transformation = current_circuit.gate()
+            self.pretty_matrices[0].set_matrix(linear_transformation.array)
+        else:
+            self.pretty_matrices[0].set_matrix([[0]])
 
     def toggle_qubit(self, index):
         self.qubits[index].toggle()
+        self.run_circuit()
+
+
+class PrettyMatrix:
+    GRID_MARGIN = 3
+    
+
+    def __init__(self, circuit_builder, size, pos = [0, 0]):
+        self.circuit_builder = circuit_builder
+        self.size = size
+        self.matrix = [[0]]
+        self.palette = sns.color_palette("rocket", as_cmap=True)
+        self.ytop = 30
+        self.xright = 0
+        self.surf = pygame.Surface((self.size + self.xright, self.size + self.ytop))
+        self.surf.fill(WHITE)
+        self.rect = self.surf.get_rect()
+        self.rect.topleft = pos
+        self.len_to_round = {1:5, 2:4, 4:3, 8:1}
+        self.redraw()
+        
+    def __len__(self):
+        return len(self.matrix)
+
+
+    def set_matrix(self, matrix):
+        self.matrix = matrix
+        self.redraw()
+
+    def redraw(self):
+        self.grid_size = self.size // len(self)
+        self.surf.fill(WHITE)
+        for i in range(len(self)):
+            for j in range(len(self)):
+                left = j * self.grid_size + PrettyMatrix.GRID_MARGIN // 2
+                top = i * self.grid_size + PrettyMatrix.GRID_MARGIN // 2 + self.ytop
+                width = self.grid_size - PrettyMatrix.GRID_MARGIN
+                height = self.grid_size - PrettyMatrix.GRID_MARGIN
+                pygame.draw.rect(self.surf, self.grid_color(i, j), (left, top, width, height))
+                if len(self) <= 8:
+                    grid_text = TEXT_FONT.render(str(my_round(abs(self.matrix[i][j]), self.len_to_round[len(self)])), True, BLACK)
+                    t_width, t_height = grid_text.get_size()
+                    self.surf.blit(grid_text, (left + (width - t_width) // 2, top + (height - t_height) // 2))
+        title = TEXT_FONT.render("circuit matrix in std base", True, BLACK)
+        width, height = title.get_size()
+        self.surf.blit(title, ((self.size - width) // 2, 0))
+
+    def draw_palette(self):
+        return
+
+    def grid_color(self, i, j):
+        x = abs(self.matrix[i][j]) - 0.01
+        c = [255 * value for value in self.palette(x)]
+        return tuple(c[:3])
 
                 
 
 
 builder = CircuitBuilder(INPUT_FILE_NAME)
-builder.rect.topleft = (100, 100)
 
 running = True
 builder.deserialize_gates()
+builder.run_circuit()
 while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -416,12 +494,11 @@ while running:
         elif event.type == pygame.MOUSEBUTTONUP:
             builder.mouse_up()
         elif event.type == pygame.KEYDOWN:
-            if pygame.key.get_mods() & pygame.KMOD_CTRL:
-                if event.key == pygame.K_s:
-                    builder.serialize_gates()
-                elif event.key == pygame.K_p:
-                    builder.serialize_gates()
-                    builder.run_circuit()
+            # if pygame.key.get_mods() & pygame.KMOD_CTRL:
+            #     if event.key == pygame.K_s:
+            #         builder.serialize_gates()
+            #     elif event.key == pygame.K_p:
+            #         builder.run_circuit()
             if event.key == pygame.K_1:
                 builder.toggle_qubit(0)
             if event.key == pygame.K_2:

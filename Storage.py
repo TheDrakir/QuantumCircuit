@@ -53,6 +53,7 @@ LT_CZ = strg._create_constant(LinearTransformation([[1, 0, 0, 0], [0, 1, 0, 0], 
 
 # define colors
 WHITE = strg._create_constant((255, 255, 255))
+BLACK = strg._create_constant((0, 0, 0))
 GREY = strg._create_constant((200, 200, 200))
 RED = strg._create_constant((219, 42, 42))
 ORANGE = strg._create_constant((219, 163, 42))
