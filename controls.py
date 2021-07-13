@@ -1,3 +1,4 @@
+from math import sqrt
 from pygame.surface import Surface
 from MyMath import my_complex_to_str
 from time import time
@@ -26,7 +27,7 @@ class CustomGateEditor:
             pygame.Rect(0, 0, 500, 50), hint="Gate name")
         self.letter_prompt = TextView((0, 100), "Letter:", FONT, DARK)
         self.letter_input = TextInput(pygame.Rect(250, 100, 50, 50), maxlen=1)
-        self.matrix_editor = MatrixEditor((2, 2), (50, 200))
+        self.matrix_editor = MatrixEditor((2, 2), (0, 200))
         self.draw()
 
     def update(self, pos):
@@ -52,6 +53,7 @@ class CustomGateEditor:
     def key_down(self, event):
         self.letter_input.key_down(event)
         self.name_input.key_down(event)
+        self.matrix_editor.key_down(event)
 
 
 class Animation:
@@ -112,8 +114,10 @@ class TextInput:
         self.active = False
         self.start_time = 0
         self._update_text_surf()
-        self.animation = Animation(0, self.rect.w, 1500)
+        self.animation = Animation(0, self.rect.w, 1000)
         self.maxlen = maxlen
+        self.anim_line_color = TEAL
+        self.base_line_color = GREY
 
     def _update_text_surf(self):
         if self.text:
@@ -126,14 +130,17 @@ class TextInput:
 
     def draw(self):
         self.surf.fill(WHITE)
-        pygame.draw.rect(self.surf, GREY, (0, self.rect.h-4, self.rect.w, 4))
-        pygame.draw.rect(self.surf, TEAL, (0, self.rect.h -
-                         3, self.animation.get_value(), 3))
+        pygame.draw.rect(self.surf, self.base_line_color, (0, self.rect.h-4, self.rect.w, 4))
+        pygame.draw.rect(self.surf, self.anim_line_color, (0, self.rect.h -
+                         4, self.animation.get_value(), 4))
         self.surf.blit(self.text_surf, (0, 0))
         if self.active and (time() - self.start_time) % 1 < 0.5:
             w = self.text_surf.get_width()
             pygame.draw.rect(self.surf, TextInput.TEXT_COLOR,
                              (w, 0, 2, self.rect.h-8))
+    
+    def point_in(self, pos):
+        return self.rect.collidepoint(pos)
 
     def mouse_down(self, pos):
         if self.rect.collidepoint(pos):
@@ -179,8 +186,8 @@ class MatrixEditor:
 
     def __init__(self, size: tuple[int, int], pos=tuple[int, int]):
         self.width, self.height = size
-        self.strings = [["0"] * self.width for _ in range(self.height)]
-        self.values = [[1/sqrt(2)] * self.width for _ in range(self.height)]
+        self.strings = [["-1/sqrt(2)+1j/sqrt(2)"] * self.width for _ in range(self.height)]
+        self.values = [[-1/sqrt(2)+1j/sqrt(2)] * self.width for _ in range(self.height)]
 
         self.value_surfs = [[None] * self.width for _ in range(self.height)]
 
@@ -188,20 +195,19 @@ class MatrixEditor:
             for j, value in enumerate(row):
                 self.value_surfs[i][j] = FONT.render(
                     my_complex_to_str(value), True, DARK)
-        self._compute_width()
-
-        visualw = sum(self.col_widths) + self.HGAP * \
-            (self.width-1) + 2*self.SIDE
-        visualh = self.VSPACE * self.height
-        self.matrix_rect = pygame.Rect(50, 100, visualw, visualh)
-        self.rect = pygame.Rect(pos[0], pos[1], visualw+100, visualh+150)
+        
+        self.rect = pygame.Rect(pos[0], pos[1], 650, 200)
         self.surf = Surface(self.rect.size)
+
+        self._compute_matrix_rect()
 
         self.value_surfs = [[None] * self.width for _ in range(self.height)]
         self.value_rects = [[None] * self.width for _ in range(self.height)]
 
         self.hover = None
         self.selection = None
+
+        self.input_rect = pygame.Rect(0, 0, self.rect.w, 60)
 
         self.text_input = None
 
@@ -210,6 +216,13 @@ class MatrixEditor:
                 self.value_surfs[i][j] = FONT.render(
                     my_complex_to_str(value), True, DARK)
         self.draw()
+    
+    def _compute_matrix_rect(self):
+        self._compute_width()
+        visualw = sum(self.col_widths) + self.HGAP * \
+            (self.width-1) + 2*self.SIDE
+        visualh = self.VSPACE * self.height
+        self.matrix_rect = pygame.Rect(50, 100, visualw, visualh)
 
     def _compute_width(self):
         self.col_widths = [0] * self.width
@@ -224,7 +237,9 @@ class MatrixEditor:
 
     def mouse_down(self, pos):
         pos = adjust_pos(pos, self.rect)
-        if (click := self._pos_in_matrix(pos)) is not None:
+        if self.text_input is not None and self.text_input.point_in(pos):
+            pass
+        elif (click := self._pos_in_matrix(pos)) is not None:
             if click != self.selection:
                 if self.selection is not None:
                     previ, prevj = self.selection
@@ -234,12 +249,45 @@ class MatrixEditor:
                 self.selection = click
                 self.value_surfs[i][j] = FONT.render(
                     my_complex_to_str(self.values[i][j]), True, RED)
+                self.text_input = TextInput(self.input_rect, text=self.strings[i][j], maxlen=50)
+                
+                self.text_input.active = True
+                self.text_input.animation.run()
         else:
             if self.selection is not None:
                 previ, prevj = self.selection
                 self.value_surfs[previ][prevj] = FONT.render(
                     my_complex_to_str(self.values[previ][prevj]), True, DARK)
                 self.selection = None
+                self.text_input = None
+    
+    def key_down(self, event):
+        if self.text_input is not None:
+            if event.key == pygame.K_RETURN:
+                i, j = self.selection
+                good = False
+                try:
+                    self.values[i][j] = eval(self.text_input.text, {'sqrt': sqrt}, {})
+                    if self.text_input.anim_line_color == RED:
+                        self.text_input.base_line_color = RED
+                        self.text_input.anim_line_color = TEAL
+                        self.text_input.animation.value = 0
+                        self.text_input.animation.run()
+                    good = True
+                except:
+                    if self.text_input.anim_line_color == TEAL:
+                        self.text_input.base_line_color = TEAL
+                        self.text_input.anim_line_color = RED
+                        self.text_input.animation.value = 0
+                        self.text_input.animation.run()
+
+                if good:
+                    self.strings[i][j] = self.text_input.text
+                    self.value_surfs[i][j] = FONT.render(
+                    my_complex_to_str(self.values[i][j]), True, RED)
+                    self._compute_matrix_rect()
+            else:
+                self.text_input.key_down(event)
         
 
     def draw(self):
@@ -261,6 +309,9 @@ class MatrixEditor:
                 self.value_rects[i][j] = self.surf.blit(self.value_surfs[i][j],
                                                         (x+self.xcoords[j],
                                                          y+self.VSPACE*i))
+        if self.text_input is not None:
+            self.text_input.draw()
+            self.surf.blit(self.text_input.surf, self.text_input.rect)
 
     def update(self, pos):
         pos = adjust_pos(pos, self.rect)
@@ -293,7 +344,7 @@ def adjust_pos(pos, rect):
     return (x - rect.x, y - rect.y)
 
 
-g = CustomGateEditor(pygame.Rect(100, 100, 500, 500))
+g = CustomGateEditor(pygame.Rect(100, 100, 800, 500))
 
 running = True
 while running:
