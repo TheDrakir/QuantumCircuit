@@ -28,7 +28,7 @@ class CustomGateEditor:
         self.letter_input = TextInput(pygame.Rect(250, 100, 50, 50), maxlen=1)
         self.matrix_editor = MatrixEditor((2, 2), (50, 200))
         self.draw()
-    
+
     def update(self, pos):
         pos = adjust_pos(pos, self.rect)
         self.matrix_editor.update(pos)
@@ -47,6 +47,7 @@ class CustomGateEditor:
         pos = adjust_pos(pos, self.rect)
         self.letter_input.mouse_down(pos)
         self.name_input.mouse_down(pos)
+        self.matrix_editor.mouse_down(pos)
 
     def key_down(self, event):
         self.letter_input.key_down(event)
@@ -179,7 +180,7 @@ class MatrixEditor:
     def __init__(self, size: tuple[int, int], pos=tuple[int, int]):
         self.width, self.height = size
         self.strings = [["0"] * self.width for _ in range(self.height)]
-        self.values = [[0] * self.width for _ in range(self.height)]
+        self.values = [[1/sqrt(2)] * self.width for _ in range(self.height)]
 
         self.value_surfs = [[None] * self.width for _ in range(self.height)]
 
@@ -220,11 +221,26 @@ class MatrixEditor:
         for j in range(1, self.width):
             self.xcoords[j] = self.xcoords[j-1] + \
                 self.col_widths[j-1] + self.HGAP
-    
+
     def mouse_down(self, pos):
         pos = adjust_pos(pos, self.rect)
-        pass
-
+        if (click := self._pos_in_matrix(pos)) is not None:
+            if click != self.selection:
+                if self.selection is not None:
+                    previ, prevj = self.selection
+                    self.value_surfs[previ][prevj] = FONT.render(
+                        my_complex_to_str(self.values[previ][prevj]), True, DARK)
+                i, j = click
+                self.selection = click
+                self.value_surfs[i][j] = FONT.render(
+                    my_complex_to_str(self.values[i][j]), True, RED)
+        else:
+            if self.selection is not None:
+                previ, prevj = self.selection
+                self.value_surfs[previ][prevj] = FONT.render(
+                    my_complex_to_str(self.values[previ][prevj]), True, DARK)
+                self.selection = None
+        
 
     def draw(self):
         self.surf.fill(WHITE)
@@ -249,16 +265,16 @@ class MatrixEditor:
     def update(self, pos):
         pos = adjust_pos(pos, self.rect)
         if (current_hover := self._pos_in_matrix(pos)) is not None:
-            if current_hover != self.hover:
+            if current_hover != self.hover and current_hover != self.selection:
                 i, j = current_hover
                 self.value_surfs[i][j] = FONT.render(
                     my_complex_to_str(self.values[i][j]), True, ORANGE)
-                if self.hover is not None:
+                if self.hover is not None and self.hover != self.selection:
                     previ, prevj = self.hover
                     self.value_surfs[previ][prevj] = FONT.render(
                         my_complex_to_str(self.values[previ][prevj]), True, DARK)
                 self.hover = current_hover
-        elif self.hover is not None:
+        elif self.hover is not None and self.hover != self.selection:
             previ, prevj = self.hover
             self.value_surfs[previ][prevj] = FONT.render(
                 my_complex_to_str(self.values[previ][prevj]), True, DARK)
@@ -271,9 +287,11 @@ class MatrixEditor:
                     return i, j
         return None
 
+
 def adjust_pos(pos, rect):
     x, y = pos
     return (x - rect.x, y - rect.y)
+
 
 g = CustomGateEditor(pygame.Rect(100, 100, 500, 500))
 
