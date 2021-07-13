@@ -81,6 +81,13 @@ class Quantum:
             stdQuantum += element * baseElement
         return stdQuantum
 
+    @staticmethod
+    def initFromSingleQubits(vector):
+        singleQuantum = Quantum(vector[0])
+        for qubit in vector[1:]:
+            singleQuantum = Quantum(qubit) @ singleQuantum
+        return singleQuantum
+
     def __str__(self):
         string = ""
         for i, scalar in enumerate(self.vector):

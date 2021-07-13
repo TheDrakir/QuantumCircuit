@@ -102,6 +102,9 @@ class LinearTransformation:
             string += end
         return string
 
+    def probabilities(self):
+        return [[(abs(value))**2 for value in row] for row in self.array]
+
     @staticmethod
     def zero(n):
         return LinearTransformation([[0] * n for _ in range(n)])
