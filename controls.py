@@ -184,10 +184,16 @@ class MatrixEditor:
     VSPACE = 50
     SIDE = 30
 
-    def __init__(self, size: tuple[int, int], pos=tuple[int, int]):
+    def __init__(self, size: tuple[int, int], pos: tuple[int, int], editable=True, values=None):
         self.width, self.height = size
-        self.strings = [["-1/sqrt(2)+1j/sqrt(2)"] * self.width for _ in range(self.height)]
-        self.values = [[-1/sqrt(2)+1j/sqrt(2)] * self.width for _ in range(self.height)]
+        self.strings = [["0"] * self.width for _ in range(self.height)]
+        self.values = [[0] * self.width for _ in range(self.height)]
+        if values is not None:
+            for i in range(self.height):
+                for j in  range(self.width):
+                    self.values[i][j] = values[i][j]
+                    self.strings[i][j] = str(values[i][j])
+
 
         self.value_surfs = [[None] * self.width for _ in range(self.height)]
 
@@ -196,7 +202,7 @@ class MatrixEditor:
                 self.value_surfs[i][j] = FONT.render(
                     my_complex_to_str(value), True, DARK)
         
-        self.rect = pygame.Rect(pos[0], pos[1], 650, 200)
+        self.rect = pygame.Rect(pos[0], pos[1], 660, 200)
         self.surf = Surface(self.rect.size)
 
         self._compute_matrix_rect()
@@ -208,6 +214,7 @@ class MatrixEditor:
         self.selection = None
 
         self.input_rect = pygame.Rect(0, 0, self.rect.w, 60)
+        self.editable = editable
 
         self.text_input = None
 
@@ -251,8 +258,9 @@ class MatrixEditor:
                     my_complex_to_str(self.values[i][j]), True, RED)
                 self.text_input = TextInput(self.input_rect, text=self.strings[i][j], maxlen=50)
                 
-                self.text_input.active = True
-                self.text_input.animation.run()
+                if self.editable:
+                    self.text_input.active = True
+                    self.text_input.animation.run()
         else:
             if self.selection is not None:
                 previ, prevj = self.selection
@@ -262,6 +270,8 @@ class MatrixEditor:
                 self.text_input = None
     
     def key_down(self, event):
+        if not self.editable:
+            return
         if self.text_input is not None:
             if event.key == pygame.K_RETURN:
                 i, j = self.selection
