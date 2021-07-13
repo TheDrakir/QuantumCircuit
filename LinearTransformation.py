@@ -1,5 +1,5 @@
 from Quantum import Quantum
-from MyMath import my_complex_to_str, my_int_to_qubits
+from MyMath import my_complex_to_str, my_int_to_qubits, my_complex_to_latex
 
 
 class LinearTransformation:
@@ -117,6 +117,17 @@ class LinearTransformation:
 
     def probabilities(self):
         return [[(abs(value))**2 for value in row] for row in self.array]
+
+    def latex(self):
+        string = "\\begin{pmatrix}"
+        for row in self.array:
+            for element in row:
+                string +=  my_complex_to_latex(element) + " & "
+            string = string[:-2] + "\\\\ "
+        string = string[:-3] + "\\end{pmatrix}"
+        print(string)
+        return string
+
 
     @staticmethod
     def zero(n):

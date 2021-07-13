@@ -2,6 +2,8 @@ from matplotlib.colors import TwoSlopeNorm
 import pygame
 import json
 import seaborn as sns
+import pyperclip
+import time
 
 from MyMath import my_round
 from Storage import *
@@ -21,12 +23,13 @@ SCREEN_HEIGHT = 1000
 CIRCUIT_WIDTH = 1000
 
 pygame.display.set_caption("Quantum Circuit Builder")
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-
+#screen = pygame.display.set_mode((1700, 1000))
+screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
 
 # load standard font (can take up to a few seconds)
 FONT = pygame.font.SysFont('Arial', 70)
 TEXT_FONT = pygame.font.SysFont('Arial', 20)
+MINI_FONT = pygame.font.SysFont('Arial', 10)
 
 
 class Control:
@@ -242,7 +245,10 @@ class CircuitBuilder:
             self.qubits.append(Qubit(self, i, rect))
         self.pretty_matrices = []
         self.pretty_matrices.append(PrettyMatrix(self, "std probabilities", 300, 300, [700, self.ytop]))
-        self.pretty_matrices.append(PrettyMatrix(self, "output vector", 100, 400, [1050, self.ytop + 350]))
+        self.pretty_matrices.append(PrettyMatrix(self, "output vector", 150, 415, [1050, self.ytop + 360], square = False))
+        self.copy_boxes = []
+        self.copy_boxes.append(CopyBox(self, "copied std probabilities", self.pretty_matrices[0]))
+        self.copy_boxes.append(CopyBox(self, "copied output vector", self.pretty_matrices[1]))
         self.surf = pygame.Surface((self.width, self.height))
         self.rect = self.surf.get_rect()
         self.rect.topleft = [self.xleft, self.ytop]
@@ -252,11 +258,15 @@ class CircuitBuilder:
 
         self.grabbed_gate = None
         self.control_grabbed = False
+        self.grabbed_box = None
         self.control_j = None
         self.gate_i = None
         self.control_offset_start = None
 
         self.matrix_viewer = None
+        self.vector_viewer = None
+
+        self.message = None
 
     def draw(self):
         self.surf.fill(WHITE)
@@ -264,6 +274,12 @@ class CircuitBuilder:
             self.surf.blit(qubit.surf, qubit.rect)
         for gate in self.build_gates:
             self.surf.blit(gate.surf, gate.rect)
+        if self.matrix_viewer is not None:
+            self.matrix_viewer.draw()
+            self.surf.blit(self.matrix_viewer.surf, self.matrix_viewer.rect)
+        if self.vector_viewer is not None:
+            self.vector_viewer.draw()
+            self.surf.blit(self.vector_viewer.surf, self.vector_viewer.rect)
         for pretty_matrix in self.pretty_matrices:
             self.surf.blit(pretty_matrix.surf, pretty_matrix.rect)
         for row in self.circuitNodes:
@@ -279,9 +295,11 @@ class CircuitBuilder:
                 pygame.draw.rect(self.surf, WHITE, rect)
                 pygame.draw.rect(self.surf, GREY, rect, width=3)
             self.surf.blit(self.grabbed_gate.surf, self.grabbed_gate.rect)
-        if self.matrix_viewer is not None:
-            self.matrix_viewer.draw()
-            self.surf.blit(self.matrix_viewer.surf, self.matrix_viewer.rect)
+
+        if self.message is not None:
+            self.message.redraw()
+            self.surf.blit(self.message.surf, self.message.rect)
+
 
     def _get_position(self):
         if (gate := self.grabbed_gate) is not None:
@@ -339,8 +357,11 @@ class CircuitBuilder:
             self.control_offset_start = None
             self.gate_i = None
         if self.grabbed_gate is not None:
-            builder.run_circuit()
+            self.run_circuit()
+        if self.grabbed_box is not None:
+            self.grabbed_box.copy()
         self.grabbed_gate = None
+        self.grabbed_box = None
 
     def update(self, pos):
         x, y = pos
@@ -348,6 +369,8 @@ class CircuitBuilder:
         x, y = pos
         if self.matrix_viewer is not None:
             self.matrix_viewer.update(pos)
+        if self.vector_viewer is not None:
+            self.vector_viewer.update(pos)
         if self.grabbed_gate is not None:
             if not self.control_grabbed:
                 self.grabbed_gate.update(pos)
@@ -365,6 +388,10 @@ class CircuitBuilder:
         pos = x - self.rect.x, y - self.rect.y
         if self.grabbed_gate is not None:
             return
+        if self.grabbed_box is not None:
+            if not self.grabbed_box.point_in(pos):
+                self.grabbed_box = None
+            return
         for gate in self.build_gates:
             if gate.point_in(pos):
                 self.grabbed_gate = Gate(self, gate.gate_type, pos=(
@@ -374,6 +401,9 @@ class CircuitBuilder:
                         Control(), gate.offset, self.ystep)
                 self.grabbed_gate.grab(pos)
                 return
+        for copy_box in self.copy_boxes:
+            if copy_box.point_in(pos):
+                self.grabbed_box = copy_box
         for i, row in enumerate(self.circuitNodes):
             for j, node in enumerate(row):
                 if node is not None and node is not BLOCKED and node.main:
@@ -395,6 +425,9 @@ class CircuitBuilder:
                 
         if self.matrix_viewer is not None:
             self.matrix_viewer.mouse_down(pos)
+
+        if self.vector_viewer is not None:
+            self.vector_viewer.mouse_down(pos)            
 
     def serialize(self):
         content = {"qubits": [], "gates": {}}
@@ -441,16 +474,20 @@ class CircuitBuilder:
             current_circuit = Circuit.deserialize()
             linear_transformation = current_circuit.gate()
             self.pretty_matrices[0].set_matrix(linear_transformation.probabilities())
-
-            self.matrix_viewer = MatrixEditor((2**self.active_qubits, 2**self.active_qubits),
-                                              pygame.Rect(1100, self.ytop, 500, 500), editable=False,
-                                              values=linear_transformation.array)
+            out_qubits = linear_transformation * Quantum.zeroQubit(self.active_qubits)
+            self.pretty_matrices[1].set_matrix(out_qubits.realArray())
+            self.matrix_viewer = MatrixEditor((2**self.active_qubits, 2**self.active_qubits), pygame.Rect(1010, self.ytop, 600, 500), editable=False, values=linear_transformation.array)
             self.matrix_viewer.draw()
             self.surf.blit(self.matrix_viewer.surf, self.matrix_viewer.rect)
-            
+            self.vector_viewer = MatrixEditor((1, 2**self.active_qubits), pygame.Rect(1210, self.ytop + 360, 200, 500), editable=False, values=out_qubits.complexArray(), vector = True)
+            self.vector_viewer.draw()
+            self.surf.blit(self.vector_viewer.surf, self.vector_viewer.rect)
+            self.copy_boxes[0].set_string(linear_transformation.latex())
+            self.copy_boxes[1].set_string(out_qubits.latex())
         else:
             self.pretty_matrices[0].set_matrix([[0]])
             self.matrix_viewer = None
+            self.vector_viewer = None
 
     def toggle_qubit(self, index):
         self.qubits[index].toggle()
@@ -460,7 +497,7 @@ class CircuitBuilder:
 class PrettyMatrix:
     GRID_MARGIN = 3
 
-    def __init__(self, circuit_builder, title, width, height, pos=[0, 0]):
+    def __init__(self, circuit_builder, title, width, height, pos=[0, 0], square = True):
         self.circuit_builder = circuit_builder
         self.title = title
         self.width = width
@@ -469,12 +506,15 @@ class PrettyMatrix:
         self.palette = sns.color_palette("rocket", as_cmap=True)
         self.ytop = 30
         self.xright = 0
-        self.surf = pygame.Surface(
-            (self.width + self.xright, self.height + self.ytop))
+        self.surf = pygame.Surface((self.width + self.xright, self.height + self.ytop))
         self.surf.fill(WHITE)
         self.rect = self.surf.get_rect()
         self.rect.topleft = pos
-        self.len_to_round = {1: 5, 2: 4, 4: 3, 8: 1}
+        self.square = square
+        if self.square:
+            self.len_to_round = {1: 5, 2: 4, 4: 3, 8: 1}
+        else:
+            self.len_to_round = {1:4, 2:4, 4:4, 8:4, 16:4, 32:4}
         self.redraw()
 
     def __len__(self):
@@ -485,26 +525,35 @@ class PrettyMatrix:
         self.redraw()
 
     def redraw(self):
-        self.grid_width = self.width // len(self)
-        self.grid_height = self.height // len(self.matrix[0])
+        self.grid_width = self.width // len(self.matrix[0])
+        self.grid_height = self.height // len(self)
         self.surf.fill(WHITE)
+        font = TEXT_FONT
+        if not self.square and len(self) >= 32:
+            font = MINI_FONT
         for i in range(len(self)):
-            for j in range(len(self)):
+            for j in range(len(self.matrix[0])):
                 left = j * self.grid_width + PrettyMatrix.GRID_MARGIN // 2
                 top = i * self.grid_height + PrettyMatrix.GRID_MARGIN // 2 + self.ytop
                 width = self.grid_width - PrettyMatrix.GRID_MARGIN
                 height = self.grid_height - PrettyMatrix.GRID_MARGIN
                 pygame.draw.rect(self.surf, self.grid_color(
                     i, j), (left, top, width, height))
-                if len(self) <= 8:
-                    grid_text = TEXT_FONT.render(
-                        str(my_round(abs(self.matrix[i][j]), self.len_to_round[len(self)])), True, BLACK)
+                if len(self.matrix[0]) <= 8:
+                    grid_text = font.render(
+                        str(my_round(self.matrix[i][j], self.len_to_round[len(self)])) + self.add_i(j), True, DARK)
                     t_width, t_height = grid_text.get_size()
                     self.surf.blit(
                         grid_text, (left + (width - t_width) // 2, top + (height - t_height) // 2))
-        title = TEXT_FONT.render(self.title, True, BLACK)
+        title = TEXT_FONT.render(self.title, True, DARK)
         width, height = title.get_size()
         self.surf.blit(title, ((self.width - width) // 2, 0))
+
+    def add_i(self, j):
+        if not self.square and j == 1:
+            return "i"
+        else:
+            return ""
 
     def draw_palette(self):
         return
@@ -513,6 +562,54 @@ class PrettyMatrix:
         x = abs(self.matrix[i][j]) - 0.01
         c = [255 * value for value in self.palette(x)]
         return tuple(c[:3])
+
+class CopyBox:
+
+    def __init__(self, circuit_builder, message, pretty_matrix):
+        self.circuit_builder = circuit_builder
+        self.message = message
+        self.surf = pygame.Surface((pretty_matrix.width + pretty_matrix.xright, pretty_matrix.height + pretty_matrix.ytop))
+        self.rect = self.surf.get_rect()
+        self.rect.topleft = pretty_matrix.rect.topleft
+        self.string = ""
+
+    def set_string(self, string):
+        self.string = string
+
+    def copy(self):
+        pyperclip.copy(self.string)
+        self.circuit_builder.message = Message(self.circuit_builder, self.message, 1)
+
+
+    def point_in(self, pos: tuple[int, int]) -> bool:
+        return self.rect.collidepoint(pos)
+
+
+class Message:
+    SIZE = 100
+    def __init__(self, circuit_builder, string, runtime):
+        self.start = time.time()
+        self.font = pygame.font.SysFont('Arial', Message.SIZE)
+        self.circuit_builder = circuit_builder
+        self.string = string
+        self.runtime = runtime
+        self.surf = pygame.Surface((SCREEN_WIDTH, Message.SIZE))
+        self.rect = self.surf.get_rect()
+        self.rect.topleft = [0, (SCREEN_HEIGHT-Message.SIZE) / 2-100]
+
+        self.surf.fill(WHITE)
+        text = self.font.render(self.string, True, DARK)
+        t_width, _ = text.get_size()
+        self.surf.blit(text, ((SCREEN_WIDTH - t_width) / 2, 0))
+
+
+    def redraw(self):
+        self.surf.set_alpha(255-255*(time.time() - self.start) / self.runtime)
+
+
+
+    
+
 
 
 builder = CircuitBuilder(INPUT_FILE_NAME)
@@ -529,6 +626,8 @@ while running:
         elif event.type == pygame.MOUSEBUTTONUP:
             builder.mouse_up()
         elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                running = False
             if event.key == pygame.K_1:
                 builder.toggle_qubit(0)
             if event.key == pygame.K_2:

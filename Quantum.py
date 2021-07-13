@@ -1,5 +1,5 @@
 from math import acos, sin, pi, sqrt
-from MyMath import my_round, my_complex_to_str, my_int_to_qubits
+from MyMath import my_round, my_complex_to_str, my_int_to_qubits, my_complex_to_latex
 from cmath import phase
 
 
@@ -88,6 +88,26 @@ class Quantum:
             singleQuantum = Quantum(qubit) @ singleQuantum
         return singleQuantum
 
+    @staticmethod
+    def zeroQubit(n):
+        zero = Quantum([1, 0])
+        qubit = zero
+        for i in range(n - 1):
+            qubit = qubit @ zero
+        return qubit
+
+    def realArray(self):
+        array = []
+        for value in self.vector:
+            array += [[value.real, value.imag]]
+        return array
+
+    def complexArray(self):
+        array = []
+        for value in self.vector:
+            array += [[value]]
+        return array
+
     def __str__(self):
         string = ""
         for i, scalar in enumerate(self.vector):
@@ -111,3 +131,16 @@ class Quantum:
             else:
                 phi = phase(self.vector[1] / sin(theta / 2))
         return my_round(theta), my_round(phi)
+
+    def latex(self):
+        string = ""
+        for i, scalar in enumerate(self.vector):
+            if scalar != 0:
+                s = my_complex_to_latex(scalar)
+                if s[0] == "-" and len(string) > 1 and string[-2] == "+":
+                    string = string[:-2] + s + " \\ket{" + my_int_to_qubits(i, self.qBitCount) + "} + "
+                else:
+                    string += my_complex_to_latex(scalar) + " \\ket{" + my_int_to_qubits(i, self.qBitCount) + "} + "
+        if len(string) < 2:
+            return ""
+        return string[:-2]
