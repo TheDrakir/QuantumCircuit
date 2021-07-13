@@ -11,15 +11,14 @@ pygame.init()
 
 
 # set window size
-SCREEN_WIDTH = 1000
-SCREEN_HEIGHT = 1000
+SCREEN_WIDTH = 1500
+SCREEN_HEIGHT = 1500
 pygame.display.set_caption("Quantum Circuit Builder")
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 
 # load standard font (can take up to a few seconds)
 
 FONT = pygame.font.SysFont("arial", 40)
-
 
 
 class CustomGateEditor:
@@ -30,22 +29,35 @@ class CustomGateEditor:
             pygame.Rect(0, 0, 500, 50), hint="Gate name")
         self.letter_prompt = TextView((0, 100), "Letter:", FONT, DARK)
         self.letter_input = TextInput(pygame.Rect(140, 100, 40, 50), maxlen=1)
-        self.matrix_editor = MatrixEditor((2, 2), pygame.Rect(0, 200, 500, 500))
+        self.matrix_editor = MatrixEditor(
+            (2, 2), pygame.Rect(0, 200, 500, 500))
+        self.button_save = Button(pygame.Rect(0, 500, 150, 60), "Save", color=GREEN)
+        self.button_delete = Button(pygame.Rect(180, 500, 150, 60), "Delete", color=RED)
+        self.button_cancel = Button(pygame.Rect(360, 500, 150, 60), "Cancel", color=ORANGE)
         self.draw()
 
     def update(self, pos):
         pos = adjust_pos(pos, self.rect)
         self.matrix_editor.update(pos)
+        self.button_save.update(pos)
+        self.button_delete.update(pos)
+        self.button_cancel.update(pos)
 
     def draw(self):
         self.letter_input.draw()
         self.name_input.draw()
         self.matrix_editor.draw()
+        self.button_save.draw()
+        self.button_delete.draw()
+        self.button_cancel.draw()
         self.surf.fill(WHITE)
         self.surf.blit(self.name_input.surf, self.name_input.rect)
         self.surf.blit(self.letter_input.surf, self.letter_input.rect)
         self.surf.blit(self.letter_prompt.surf, self.letter_prompt.pos)
         self.surf.blit(self.matrix_editor.surf, self.matrix_editor.rect)
+        self.surf.blit(self.button_save.surf, self.button_save.rect)
+        self.surf.blit(self.button_delete.surf, self.button_delete.rect)
+        self.surf.blit(self.button_cancel.surf, self.button_cancel.rect)
 
     def mouse_down(self, pos):
         pos = adjust_pos(pos, self.rect)
@@ -122,7 +134,6 @@ class TextInput:
         self.maxlen = maxlen
         self.anim_line_color = TEAL
         self.base_line_color = GREY
-        
 
     def _update_text_surf(self):
         if self.text:
@@ -135,7 +146,8 @@ class TextInput:
 
     def draw(self):
         self.surf.fill(WHITE)
-        pygame.draw.rect(self.surf, self.base_line_color, (0, self.rect.h-4, self.rect.w, 4))
+        pygame.draw.rect(self.surf, self.base_line_color,
+                         (0, self.rect.h-4, self.rect.w, 4))
         pygame.draw.rect(self.surf, self.anim_line_color, (0, self.rect.h -
                          4, self.animation.get_value(), 4))
         self.surf.blit(self.text_surf, (0, 0))
@@ -143,7 +155,7 @@ class TextInput:
             w = self.text_surf.get_width()
             pygame.draw.rect(self.surf, TextInput.TEXT_COLOR,
                              (w, 0, 2, self.rect.h-8))
-    
+
     def point_in(self, pos):
         return self.rect.collidepoint(pos)
 
@@ -171,21 +183,45 @@ class TextInput:
 
 
 class Button:
-    def __init__(self, rect: pygame.Rect, text: str):
+    def __init__(self, rect: pygame.Rect, text: str, color=BLUE):
         self.rect = rect
-        self.surf = pygame.Surface(rect.size)
+        self.surf = pygame.Surface(rect.size, pygame.SRCALPHA)
         self.text = text
+        self.text_surf = FONT.render(self.text, True, WHITE)
+        self.w, self.h = self.text_surf.get_width(), self.text_surf.get_height()
+        self.hover = False
+        self.animation = Animation(0, self.w, 700)
+        self.color = color
 
     def draw(self):
-        self.surf.fill(ORANGE)
-        self.text_surf = self.font.render(self.text, True, WHITE)
+        self.surf.fill(WHITE)
+        pygame.draw.rect(self.surf, self.color, (0, 0, self.rect.w,
+                         self.rect.h), border_radius=20)
+        if (v := self.animation.get_value()) > 1.:
+            pygame.draw.line(self.surf, WHITE,
+                            (self.rect.w/2-self.w/2, self.rect.h/2+self.h/2-3),
+                            (self.rect.w/2-self.w/2+v, self.rect.h/2+self.h/2-3),
+                            width=4)
+        self.surf.blit(self.text_surf, (self.rect.w/2 -
+                       self.w/2, self.rect.h/2-self.h/2-2))
+
+    def update(self, pos):
+        if self.point_in(pos):
+            if not self.hover:
+                self.hover = True
+                self.animation.run()
+                
+        else:
+            if self.hover:
+                self.hover = False
+                self.animation.reverse()
 
     def point_in(self, pos):
+        #pos = adjust_pos(pos, self.rect)
         return self.rect.collidepoint(pos)
 
 
 class MatrixEditor:
-
 
     def __init__(self, size: tuple[int, int], rect: pygame.Rect, editable=True, values=None):
         self.width, self.height = size
@@ -193,17 +229,14 @@ class MatrixEditor:
         self.values = [[0] * self.width for _ in range(self.height)]
         if values is not None:
             for i in range(self.height):
-                for j in  range(self.width):
+                for j in range(self.width):
                     self.values[i][j] = values[i][j]
                     self.strings[i][j] = str(values[i][j])
 
         self._set_font(rect.width - 20)
 
-
         self.rect = rect
         self.surf = Surface(self.rect.size)
-
-        
 
         self.value_surfs = [[None] * self.width for _ in range(self.height)]
         self.value_rects = [[None] * self.width for _ in range(self.height)]
@@ -221,7 +254,7 @@ class MatrixEditor:
                 self.value_surfs[i][j] = self.font.render(
                     my_complex_to_str(value), True, DARK)
         self.draw()
-    
+
     def _set_font(self, desired_width):
         self._set_spaces(50)
         w1 = self.matrix_rect.width
@@ -231,7 +264,7 @@ class MatrixEditor:
         # linear to it
         font_size = min(int(map_value(desired_width, w1, w2, 50, 100)), 50)
         self._set_spaces(font_size)
-    
+
     def _set_spaces(self, fontsize):
         self.font_size = fontsize
         self.font = pygame.font.SysFont("arial", self.font_size)
@@ -245,9 +278,9 @@ class MatrixEditor:
             for j, value in enumerate(row):
                 self.value_surfs[i][j] = self.font.render(
                     my_complex_to_str(value), True, DARK)
-        
+
         self._compute_matrix_rect()
-        
+
     def _compute_matrix_rect(self):
         self._compute_width()
         visualw = sum(self.col_widths) + self.HGAP * \
@@ -280,8 +313,9 @@ class MatrixEditor:
                 self.selection = click
                 self.value_surfs[i][j] = self.font.render(
                     my_complex_to_str(self.values[i][j]), True, BLUE)
-                self.text_input = TextInput(self.input_rect, text=self.strings[i][j], maxlen=50)
-                
+                self.text_input = TextInput(
+                    self.input_rect, text=self.strings[i][j], maxlen=50)
+
                 if self.editable:
                     self.text_input.active = True
                     self.text_input.animation.run()
@@ -292,7 +326,7 @@ class MatrixEditor:
                     my_complex_to_str(self.values[previ][prevj]), True, DARK)
                 self.selection = None
                 self.text_input = None
-    
+
     def key_down(self, event):
         if not self.editable:
             return
@@ -301,7 +335,8 @@ class MatrixEditor:
                 i, j = self.selection
                 good = False
                 try:
-                    self.values[i][j] = eval(self.text_input.text, {'sqrt': sqrt}, {})
+                    self.values[i][j] = eval(
+                        self.text_input.text, {'sqrt': sqrt}, {})
                     if self.text_input.anim_line_color == RED:
                         self.text_input.base_line_color = RED
                         self.text_input.anim_line_color = TEAL
@@ -319,11 +354,10 @@ class MatrixEditor:
                     self.strings[i][j] = self.text_input.text
                     self._set_font(self.rect.width - 20)
                     self.value_surfs[i][j] = self.font.render(
-                    my_complex_to_str(self.values[i][j]), True, RED)
+                        my_complex_to_str(self.values[i][j]), True, RED)
                     self._compute_matrix_rect()
             else:
                 self.text_input.key_down(event)
-        
 
     def draw(self):
         self.surf.fill(WHITE)
@@ -378,11 +412,13 @@ def adjust_pos(pos, rect):
     x, y = pos
     return (x - rect.x, y - rect.y)
 
+
 def map_value(value, istart, istop, ostart, ostop):
     return ostart + (ostop - ostart) * ((value - istart) / (istop - istart))
 
+
 if __name__ == '__main__':
-    g = CustomGateEditor(pygame.Rect(100, 100, 1000, 700))
+    g = CustomGateEditor(pygame.Rect(100, 100, 1500, 700))
 
     running = True
     while running:
