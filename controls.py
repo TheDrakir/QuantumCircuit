@@ -202,7 +202,7 @@ class MatrixEditor:
                 self.value_surfs[i][j] = FONT.render(
                     my_complex_to_str(value), True, DARK)
         
-        self.rect = pygame.Rect(pos[0], pos[1], 660, 200)
+        self.rect = pygame.Rect(pos[0], pos[1], 330 * self.width, 100 * self.height)
         self.surf = Surface(self.rect.size)
 
         self._compute_matrix_rect()
@@ -213,7 +213,7 @@ class MatrixEditor:
         self.hover = None
         self.selection = None
 
-        self.input_rect = pygame.Rect(0, 0, self.rect.w, 60)
+        self.input_rect = pygame.Rect(0, 0, 650, 60)
         self.editable = editable
 
         self.text_input = None
@@ -353,26 +353,26 @@ def adjust_pos(pos, rect):
     x, y = pos
     return (x - rect.x, y - rect.y)
 
+if __name__ == '__main__':
+    g = CustomGateEditor(pygame.Rect(100, 100, 800, 500))
 
-g = CustomGateEditor(pygame.Rect(100, 100, 800, 500))
+    running = True
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                g.mouse_down(event.pos)
+            elif event.type == pygame.MOUSEBUTTONUP:
+                pass
+            elif event.type == pygame.KEYDOWN:
+                g.key_down(event)
 
-running = True
-while running:
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
-        elif event.type == pygame.MOUSEBUTTONDOWN:
-            g.mouse_down(event.pos)
-        elif event.type == pygame.MOUSEBUTTONUP:
-            pass
-        elif event.type == pygame.KEYDOWN:
-            g.key_down(event)
+        screen.fill(WHITE)
+        g.update(pygame.mouse.get_pos())
+        g.draw()
+        screen.blit(g.surf, g.rect)
 
-    screen.fill(WHITE)
-    g.update(pygame.mouse.get_pos())
-    g.draw()
-    screen.blit(g.surf, g.rect)
+        pygame.display.flip()
 
-    pygame.display.flip()
-
-pygame.quit()
+    pygame.quit()
