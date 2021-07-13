@@ -1,6 +1,7 @@
 from Quantum import Quantum
 from MyMath import my_complex_to_str, my_int_to_qubits
 
+
 class LinearTransformation:
     '''Defines a linear transformation from an n-qubit vectorspace to itself.'''
 
@@ -9,6 +10,7 @@ class LinearTransformation:
         self.name = name
         self.validate()
         self.set_qubit_count()
+        
 
     def validate(self):
         for row in self.array:
@@ -19,6 +21,17 @@ class LinearTransformation:
             i += 1
         if 2**i != len(self):
             raise ValueError("Size of input space is not a power of two.")
+    
+    def _is_unitary(self):
+        # import must be here due to circular import stuff
+        # TODO: restructure code
+        from Base import OrthoNormalBase
+        qubits = []
+        for j in range(len(self.array)):
+            qubits.append(Quantum([self.array[i][j] for i in range(len(self.array))]))
+        ortho_normal_base = OrthoNormalBase(qubits)
+        return ortho_normal_base.is_ortho_normal_base()
+
 
     def set_qubit_count(self):
         self.qubit_count = 0

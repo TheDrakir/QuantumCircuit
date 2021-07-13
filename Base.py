@@ -2,6 +2,7 @@ from math import sqrt
 
 from Quantum import Quantum
 from Storage import *
+from MyMath import my_round_complex, my_round
 
 
 class Base:
@@ -34,11 +35,11 @@ class OrthoNormalBase(Base):
     '''Defines an orthonormal base.'''
 
     def is_ortho_normal_base(self):
-        for i1, base_element1 in self.vector:
-            if abs(base_element1) != 1:
+        for i1, base_element1 in enumerate(self.vector):
+            if my_round(abs(base_element1)) != 1:
                 return False
-            for i2, base_element2 in self.vector[i1+1:]:
-                if base_element1 * base_element2 != 0:
+            for base_element2 in self.vector[i1+1:]:
+                if my_round_complex(base_element1 * base_element2) != 0:
                     return False
         return True
 
