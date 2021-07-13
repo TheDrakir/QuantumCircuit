@@ -1,4 +1,5 @@
 from math import sqrt
+from pygame.font import Font
 from pygame.surface import Surface
 from MyMath import my_complex_to_str
 from time import time
@@ -28,7 +29,7 @@ class CustomGateEditor:
         self.name_input = TextInput(
             pygame.Rect(0, 0, 500, 50), hint="Gate name")
         self.letter_prompt = TextView((0, 100), "Letter:", FONT, DARK)
-        self.letter_input = TextInput(pygame.Rect(250, 100, 50, 50), maxlen=1)
+        self.letter_input = TextInput(pygame.Rect(140, 100, 40, 50), maxlen=1)
         self.matrix_editor = MatrixEditor((2, 2), pygame.Rect(0, 200, 500, 500))
         self.draw()
 
@@ -110,6 +111,7 @@ class TextInput:
 
     def __init__(self, rect: pygame.Rect, text: str = "", hint: str = "", maxlen: int = 20):
         self.surf = pygame.Surface(rect.size)
+        self.font = FONT
         self.rect = rect
         self.text = text
         self.hint = hint
@@ -120,15 +122,16 @@ class TextInput:
         self.maxlen = maxlen
         self.anim_line_color = TEAL
         self.base_line_color = GREY
+        
 
     def _update_text_surf(self):
         if self.text:
-            self.text_surf = FONT.render(self.text, True, DARK)
+            self.text_surf = self.font.render(self.text, True, DARK)
         else:
             if not self.active:
-                self.text_surf = FONT.render(self.hint, True, GREY)
+                self.text_surf = self.font.render(self.hint, True, GREY)
             else:
-                self.text_surf = FONT.render("", True, GREY)
+                self.text_surf = self.font.render("", True, GREY)
 
     def draw(self):
         self.surf.fill(WHITE)
@@ -175,7 +178,7 @@ class Button:
 
     def draw(self):
         self.surf.fill(ORANGE)
-        self.text_surf = FONT.render(self.text, True, WHITE)
+        self.text_surf = self.font.render(self.text, True, WHITE)
 
     def point_in(self, pos):
         return self.rect.collidepoint(pos)
@@ -245,7 +248,6 @@ class MatrixEditor:
         
         self._compute_matrix_rect()
         
-    
     def _compute_matrix_rect(self):
         self._compute_width()
         visualw = sum(self.col_widths) + self.HGAP * \
@@ -277,7 +279,7 @@ class MatrixEditor:
                 i, j = click
                 self.selection = click
                 self.value_surfs[i][j] = self.font.render(
-                    my_complex_to_str(self.values[i][j]), True, RED)
+                    my_complex_to_str(self.values[i][j]), True, BLUE)
                 self.text_input = TextInput(self.input_rect, text=self.strings[i][j], maxlen=50)
                 
                 if self.editable:
@@ -352,7 +354,7 @@ class MatrixEditor:
             if current_hover != self.hover and current_hover != self.selection:
                 i, j = current_hover
                 self.value_surfs[i][j] = self.font.render(
-                    my_complex_to_str(self.values[i][j]), True, ORANGE)
+                    my_complex_to_str(self.values[i][j]), True, CYAN)
                 if self.hover is not None and self.hover != self.selection:
                     previ, prevj = self.hover
                     self.value_surfs[previ][prevj] = self.font.render(

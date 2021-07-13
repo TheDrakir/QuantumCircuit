@@ -22,6 +22,7 @@ CIRCUIT_WIDTH = 1000
 pygame.display.set_caption("Quantum Circuit Builder")
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 
+
 # load standard font (can take up to a few seconds)
 FONT = pygame.font.SysFont('Arial', 70)
 TEXT_FONT = pygame.font.SysFont('Arial', 20)
@@ -335,6 +336,7 @@ class CircuitBuilder:
             self.control_j = None
             self.control_offset_start = None
             self.gate_i = None
+        if self.grabbed_gate is not None:
             builder.run_circuit()
         self.grabbed_gate = None
 
@@ -342,6 +344,8 @@ class CircuitBuilder:
         x, y = pos
         pos = x - self.rect.x, y - self.rect.y
         x, y = pos
+        if self.matrix_viewer is not None:
+            self.matrix_viewer.update(pos)
         if self.grabbed_gate is not None:
             if not self.control_grabbed:
                 self.grabbed_gate.update(pos)
