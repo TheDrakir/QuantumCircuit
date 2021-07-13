@@ -16,7 +16,9 @@ pygame.display.set_caption("Quantum Circuit Builder")
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 
 # load standard font (can take up to a few seconds)
-FONT = pygame.font.SysFont('Arial', 40)
+
+FONT = pygame.font.SysFont("arial", 40)
+
 
 
 class CustomGateEditor:
@@ -27,7 +29,7 @@ class CustomGateEditor:
             pygame.Rect(0, 0, 500, 50), hint="Gate name")
         self.letter_prompt = TextView((0, 100), "Letter:", FONT, DARK)
         self.letter_input = TextInput(pygame.Rect(250, 100, 50, 50), maxlen=1)
-        self.matrix_editor = MatrixEditor((2, 2), (0, 200))
+        self.matrix_editor = MatrixEditor((2, 2), pygame.Rect(0, 200, 500, 500))
         self.draw()
 
     def update(self, pos):
@@ -180,11 +182,9 @@ class Button:
 
 
 class MatrixEditor:
-    HGAP = 50
-    VSPACE = 50
-    SIDE = 30
 
-    def __init__(self, size: tuple[int, int], pos: tuple[int, int], editable=True, values=None):
+
+    def __init__(self, size: tuple[int, int], rect: pygame.Rect, editable=True, values=None):
         self.width, self.height = size
         self.strings = [["0"] * self.width for _ in range(self.height)]
         self.values = [[0] * self.width for _ in range(self.height)]
@@ -194,18 +194,13 @@ class MatrixEditor:
                     self.values[i][j] = values[i][j]
                     self.strings[i][j] = str(values[i][j])
 
+        self._set_font(rect.width - 20)
 
-        self.value_surfs = [[None] * self.width for _ in range(self.height)]
 
-        for i, row in enumerate(self.values):
-            for j, value in enumerate(row):
-                self.value_surfs[i][j] = FONT.render(
-                    my_complex_to_str(value), True, DARK)
-        
-        self.rect = pygame.Rect(pos[0], pos[1], 330 * self.width, 100 * self.height)
+        self.rect = rect
         self.surf = Surface(self.rect.size)
 
-        self._compute_matrix_rect()
+        
 
         self.value_surfs = [[None] * self.width for _ in range(self.height)]
         self.value_rects = [[None] * self.width for _ in range(self.height)]
@@ -213,23 +208,50 @@ class MatrixEditor:
         self.hover = None
         self.selection = None
 
-        self.input_rect = pygame.Rect(0, 0, 650, 60)
+        self.input_rect = pygame.Rect(0, 0, 650, 50)
         self.editable = editable
 
         self.text_input = None
 
         for i, row in enumerate(self.values):
             for j, value in enumerate(row):
-                self.value_surfs[i][j] = FONT.render(
+                self.value_surfs[i][j] = self.font.render(
                     my_complex_to_str(value), True, DARK)
         self.draw()
+    
+    def _set_font(self, desired_width):
+        self._set_spaces(50)
+        w1 = self.matrix_rect.width
+        self._set_spaces(100)
+        w2 = self.matrix_rect.width
+        # calculating font size based on the assumption that width is
+        # linear to it
+        font_size = min(int(map_value(desired_width, w1, w2, 50, 100)), 50)
+        self._set_spaces(font_size)
+    
+    def _set_spaces(self, fontsize):
+        self.font_size = fontsize
+        self.font = pygame.font.SysFont("arial", self.font_size)
+        self.HGAP = 10 + self.font_size * 4/7
+        self.VSPACE = self.font_size + 5
+        self.SIDE = 20
+
+        self.value_surfs = [[None] * self.width for _ in range(self.height)]
+
+        for i, row in enumerate(self.values):
+            for j, value in enumerate(row):
+                self.value_surfs[i][j] = self.font.render(
+                    my_complex_to_str(value), True, DARK)
+        
+        self._compute_matrix_rect()
+        
     
     def _compute_matrix_rect(self):
         self._compute_width()
         visualw = sum(self.col_widths) + self.HGAP * \
             (self.width-1) + 2*self.SIDE
         visualh = self.VSPACE * self.height
-        self.matrix_rect = pygame.Rect(50, 100, visualw, visualh)
+        self.matrix_rect = pygame.Rect(0, 100, visualw, visualh)
 
     def _compute_width(self):
         self.col_widths = [0] * self.width
@@ -250,11 +272,11 @@ class MatrixEditor:
             if click != self.selection:
                 if self.selection is not None:
                     previ, prevj = self.selection
-                    self.value_surfs[previ][prevj] = FONT.render(
+                    self.value_surfs[previ][prevj] = self.font.render(
                         my_complex_to_str(self.values[previ][prevj]), True, DARK)
                 i, j = click
                 self.selection = click
-                self.value_surfs[i][j] = FONT.render(
+                self.value_surfs[i][j] = self.font.render(
                     my_complex_to_str(self.values[i][j]), True, RED)
                 self.text_input = TextInput(self.input_rect, text=self.strings[i][j], maxlen=50)
                 
@@ -264,7 +286,7 @@ class MatrixEditor:
         else:
             if self.selection is not None:
                 previ, prevj = self.selection
-                self.value_surfs[previ][prevj] = FONT.render(
+                self.value_surfs[previ][prevj] = self.font.render(
                     my_complex_to_str(self.values[previ][prevj]), True, DARK)
                 self.selection = None
                 self.text_input = None
@@ -293,7 +315,8 @@ class MatrixEditor:
 
                 if good:
                     self.strings[i][j] = self.text_input.text
-                    self.value_surfs[i][j] = FONT.render(
+                    self._set_font(self.rect.width - 20)
+                    self.value_surfs[i][j] = self.font.render(
                     my_complex_to_str(self.values[i][j]), True, RED)
                     self._compute_matrix_rect()
             else:
@@ -303,7 +326,7 @@ class MatrixEditor:
     def draw(self):
         self.surf.fill(WHITE)
         cap = 20
-        thick = 6
+        thick = int(max(self.font_size * 0.15, 3))
         x, y = self.matrix_rect.topleft
         r, b = self.matrix_rect.bottomright
         h = self.matrix_rect.height
@@ -328,16 +351,16 @@ class MatrixEditor:
         if (current_hover := self._pos_in_matrix(pos)) is not None:
             if current_hover != self.hover and current_hover != self.selection:
                 i, j = current_hover
-                self.value_surfs[i][j] = FONT.render(
+                self.value_surfs[i][j] = self.font.render(
                     my_complex_to_str(self.values[i][j]), True, ORANGE)
                 if self.hover is not None and self.hover != self.selection:
                     previ, prevj = self.hover
-                    self.value_surfs[previ][prevj] = FONT.render(
+                    self.value_surfs[previ][prevj] = self.font.render(
                         my_complex_to_str(self.values[previ][prevj]), True, DARK)
                 self.hover = current_hover
         elif self.hover is not None and self.hover != self.selection:
             previ, prevj = self.hover
-            self.value_surfs[previ][prevj] = FONT.render(
+            self.value_surfs[previ][prevj] = self.font.render(
                 my_complex_to_str(self.values[previ][prevj]), True, DARK)
             self.hover = None
 
@@ -353,8 +376,11 @@ def adjust_pos(pos, rect):
     x, y = pos
     return (x - rect.x, y - rect.y)
 
+def map_value(value, istart, istop, ostart, ostop):
+    return ostart + (ostop - ostart) * ((value - istart) / (istop - istart))
+
 if __name__ == '__main__':
-    g = CustomGateEditor(pygame.Rect(100, 100, 800, 500))
+    g = CustomGateEditor(pygame.Rect(100, 100, 1000, 700))
 
     running = True
     while running:

@@ -437,7 +437,7 @@ class CircuitBuilder:
             self.pretty_matrices[0].set_matrix(linear_transformation.array)
 
             self.matrix_viewer = MatrixEditor((2**self.active_qubits, 2**self.active_qubits),
-                                              (1100, self.ytop), editable=False,
+                                              pygame.Rect(1100, self.ytop, 500, 500), editable=False,
                                               values=linear_transformation.array)
             self.matrix_viewer.draw()
             self.surf.blit(self.matrix_viewer.surf, self.matrix_viewer.rect)
