@@ -48,7 +48,6 @@ def my_complex_to_latex(x):
 
 def check_latex(x):
     x = float(x)
-    print(x)
     if x - EPSILON < floor(x + 0.5) < x + EPSILON:
         return str(floor(x + 0.5))
     string = ""

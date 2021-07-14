@@ -34,12 +34,6 @@ class Circuit:
         # Das Auslesen aus der json-Datei funktioniert nur für 1-dimensionale gates.
         with open(INPUT_FILE_NAME, "r") as f:
             content = json.load(f)
-        # inputs = content["inputs"]
-        # vector = []
-        # for i, input in enumerate(inputs):
-        #     if content["qubits"][i] == 1:
-        #         vector += [[input[0] + input[1] * 1j, input[2] + input[3] * 1j]]
-        # quantum_in = Quantum.initFromSingleQubits(vector)
         active_qubits = content["qubits"]
         num_qubits = 0
         qubit_map = {}
