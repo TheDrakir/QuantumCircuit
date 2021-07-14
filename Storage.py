@@ -82,7 +82,8 @@ with open("gates.json", "r") as f:
             for v in row:
                 l.append(complex(v))
         c = bool(value['control'])
-        g = GateType(name, tuple(value['color']), LinearTransformation(array), control=c)
+        e = bool(value['editable'])
+        g = GateType(name, tuple(value['color']), LinearTransformation(array), control=c, editable=e)
         s = strg._create_constant(g)
         GATE_TYPES.append(s)
 
@@ -98,7 +99,8 @@ with open("gates.json", "r") as f:
 
 
 
-def gate_types_to_json():
+def gate_types_to_json(GATE_TYPES=GATE_TYPES):
+    print("low", len(GATE_TYPES))
     d = {}
     for gate_type in GATE_TYPES:
         array = []
@@ -109,7 +111,8 @@ def gate_types_to_json():
                 l.append(str(v))
         d[gate_type.name] = {"color": list(gate_type.color),
                              "matrix": array,
-                             "control": int(gate_type.control)}
+                             "control": int(gate_type.control),
+                             "editable": int(gate_type.editable)}
         with open("gates.json", "w") as f:
             json.dump(d, f, indent=4)
 

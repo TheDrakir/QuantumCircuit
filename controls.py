@@ -50,7 +50,6 @@ class CustomGateEditor:
         else:
             self.warning = TextView((0, 580), "Sieht gut aus!", FONT, GREEN)
 
-
     def update(self, pos):
         pos = adjust_pos(pos, self.rect)
         self.matrix_editor.update(pos)
@@ -140,7 +139,7 @@ class TextInput:
     TEXT_COLOR = (0, 0, 0)
     HINT_COLOR = (200, 200, 200)
 
-    def __init__(self, rect: pygame.Rect, text: str = "", hint: str = "", maxlen: int = 20):
+    def __init__(self, rect: pygame.Rect, text: str = "", hint: str = "", maxlen: int = 20, editable: bool = True):
         self.surf = pygame.Surface(rect.size)
         self.font = FONT
         self.rect = rect
@@ -153,6 +152,7 @@ class TextInput:
         self.maxlen = maxlen
         self.anim_line_color = TEAL
         self.base_line_color = GREY
+        self.editable = editable
         
 
     def _update_text_surf(self):
@@ -179,6 +179,8 @@ class TextInput:
         return self.rect.collidepoint(pos)
 
     def mouse_down(self, pos):
+        if not self.editable:
+            return
         if self.rect.collidepoint(pos):
             if not self.active:
                 self.animation.run()
@@ -191,6 +193,8 @@ class TextInput:
         self.draw()
 
     def key_down(self, event):
+        if not self.editable:
+            return
         if self.active:
             if event.key == pygame.K_BACKSPACE:
                 if self.text:
@@ -251,11 +255,8 @@ class MatrixEditor:
         self.width, self.height = size
         self.strings = [["0"] * self.width for _ in range(self.height)]
         self.values = [[0] * self.width for _ in range(self.height)]
-        if values is not None:
-            for i in range(self.height):
-                for j in  range(self.width):
-                    self.values[i][j] = values[i][j]
-                    self.strings[i][j] = str(values[i][j])
+        self.rect = rect
+        self.set_values(values)
 
         self.vector = vector
         if not self.vector:
@@ -272,7 +273,7 @@ class MatrixEditor:
 
 
 
-        self.rect = rect
+        
         self.surf = Surface(self.rect.size)
 
 
@@ -296,6 +297,14 @@ class MatrixEditor:
                 self.value_surfs[i][j] = self.font.render(
                     my_complex_to_str(value), True, DARK)
         self.draw()
+
+    def set_values(self, values):
+        if values is not None:
+            for i in range(self.height):
+                for j in  range(self.width):
+                    self.values[i][j] = values[i][j]
+                    self.strings[i][j] = str(values[i][j])
+        self._set_font(self.rect.width-70)
     
     def _set_font(self, desired_width):
         self._set_spaces(50)
