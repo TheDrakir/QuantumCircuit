@@ -227,6 +227,7 @@ class CircuitBuilder:
         self.add_button = Button(pygame.Rect(0, 200, 300, 60), "add gate")
         self.gate_editor = CustomGateEditor(pygame.Rect(1000, 0, 1000, 1000))
         self.gate_editor_active = False
+        self.gate_editor_index = None
 
         # create the gate object for all gate types
         self.build_gates = []
@@ -269,6 +270,8 @@ class CircuitBuilder:
         self.vector_viewer = None
 
         self.message = None
+
+        self.click_pos = (0,0)
 
     def draw(self):
         self.surf.fill(WHITE)
@@ -360,9 +363,27 @@ class CircuitBuilder:
             else:
                 self.circuitNodes[num + node.offset][slot] = value
 
-    def mouse_up(self):
-        if (pos := self._get_position()) is not None:
-            self.grabbed_gate.place(pos)
+    def mouse_up(self, pos):
+        pos = adjust_pos(pos, self.rect)
+        if pos == self.click_pos:
+            if self.grabbed_gate is not None and self.grabbed_gate.gate_type.editable:
+                self.gate_editor_active = True
+                g = self.grabbed_gate.gate_type
+                self.gate_editor.name_input.text = g.name
+                self.gate_editor.letter_input.text = g.name
+                self.gate_editor.letter_input.editable = False
+                self.gate_editor.matrix_editor.set_values(g.linear_transformation.array)
+                self.gate_editor._matrix_updated()
+                self.gate_editor.name_input._update_text_surf()
+                self.gate_editor.letter_input._update_text_surf()
+                for i, gt in enumerate(GATE_TYPES):
+                    if gt.name == g.name:
+                        self.gate_editor_index = i
+                        break
+                else:
+                    raise Exception("ERROR :(")
+        if (index := self._get_position()) is not None:
+            self.grabbed_gate.place(index)
             self.control_grabbed = False
             self.control_j = None
             self.control_offset_start = None
@@ -404,11 +425,16 @@ class CircuitBuilder:
             self.gate_editor.key_down(event)
 
     def mouse_down(self, pos):
+        global GATE_TYPES
         x, y = pos
         pos = x - self.rect.x, y - self.rect.y
+        self.click_pos = pos
         if not self.gate_editor_active: # or pos[0] < self.gate_editor.rect.x:
             if self.add_button.point_in(pos):
                 self.gate_editor_active = True
+                self.gate_editor_index = None
+                self.gate_editor.__init__(self.gate_editor.rect)
+                self.gate_editor._matrix_updated()
             if self.gate_editor_active:
                 self.gate_editor.mouse_down(pos)
             if self.grabbed_gate is not None:
@@ -461,18 +487,41 @@ class CircuitBuilder:
             self.gate_editor.mouse_down(pos)
             pos = adjust_pos(pos, self.gate_editor.rect)
             if self.gate_editor.button_save.point_in(pos):
-                letter = self.gate_editor.letter_input.text
-                transform = LinearTransformation(self.gate_editor.matrix_editor.values)
-                g = GateType(letter, BLUE, transform)
-                strg._create_constant(g)
-                GATE_TYPES.append(g)
-                self.build_gates.append(Gate(self, g, pos=(100*(len(self.gate_types)-1), 100)))
-                gate_types_to_json()
-                self.gate_editor_active = False
+                    letter = self.gate_editor.letter_input.text
+                    transform = LinearTransformation(self.gate_editor.matrix_editor.values)
+                    if self.gate_editor_index is None:
+                        for gate in self.build_gates:
+                            if gate.gate_type.name == letter:
+                                print("Duplicate letter, cannot add gate.")
+                                return
+                        g = GateType(letter, BLUE, transform)
+                        strg._create_constant(g)
+                        GATE_TYPES.append(g)
+                        self.build_gates.append(Gate(self, g, pos=(100*(len(self.gate_types)-1), 100)))
+                    else:
+                        GATE_TYPES[self.gate_editor_index].linear_transformation = transform
+                    gate_types_to_json(GATE_TYPES=GATE_TYPES)
+                    self.gate_editor_active = False
+                    self.run_circuit()
             if self.gate_editor.button_cancel.point_in(pos):
                 self.gate_editor_active = False
             if self.gate_editor.button_delete.point_in(pos):
                 self.gate_editor_active = False
+                if self.gate_editor_index is not None:
+                    for row in self.circuitNodes:
+                        for node in row:
+                            if node is None:
+                                continue
+                            if node.gate.gate_type.name == GATE_TYPES[self.gate_editor_index].name:
+                                print("Cannot delete gate because it is used!")
+                                return
+                    else:
+                        GATE_TYPES = GATE_TYPES[:self.gate_editor_index] + GATE_TYPES[self.gate_editor_index+1:]
+                        print("top", len(GATE_TYPES))
+                        self.build_gates = self.build_gates[:self.gate_editor_index] + self.build_gates[self.gate_editor_index+1:]
+                        gate_types_to_json(GATE_TYPES=GATE_TYPES)
+                        self.run_circuit()
+
 
     def serialize(self):
         content = {"qubits": [], "gates": {}}
@@ -684,7 +733,7 @@ while running:
         elif event.type == pygame.MOUSEBUTTONDOWN:
             builder.mouse_down(event.pos)
         elif event.type == pygame.MOUSEBUTTONUP:
-            builder.mouse_up()
+            builder.mouse_up(event.pos)
         elif event.type == pygame.KEYDOWN:
             builder.key_down(event)
             if event.key == pygame.K_ESCAPE:
