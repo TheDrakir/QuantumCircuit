@@ -26,37 +26,67 @@ class CustomGateEditor:
     def __init__(self, rect: pygame.Rect):
         self.surf = pygame.Surface(rect.size)
         self.rect = rect
+        self.title = TextView((0,0), "EDIT GATE", FONT, DARK)
         self.name_input = TextInput(
-            pygame.Rect(0, 0, 500, 50), hint="Gate name")
-        self.letter_prompt = TextView((0, 100), "Letter:", FONT, DARK)
-        self.letter_input = TextInput(pygame.Rect(140, 100, 40, 50), maxlen=1)
-        self.matrix_editor = MatrixEditor((2, 2), pygame.Rect(0, 200, 500, 500))
+            pygame.Rect(0, 80, 500, 50), hint="Gate name")
+        self.letter_prompt = TextView((0, 180), "Letter:", FONT, DARK)
+        self.letter_input = TextInput(pygame.Rect(140, 180, 40, 50), maxlen=1)
+        self.matrix_editor = MatrixEditor((2, 2), pygame.Rect(0, 280, 500, 500))
+        self._matrix_updated()
+        self.button_save = Button(pygame.Rect(0, 680, 150, 60), "Save", color=GREEN)
+        self.button_delete = Button(pygame.Rect(180, 680, 150, 60), "Delete", color=RED)
+        self.button_cancel = Button(pygame.Rect(360, 680, 150, 60), "Cancel", color=ORANGE)
         self.draw()
+    
+    def _matrix_updated(self):
+        self.matrix = LinearTransformation(self.matrix_editor.values)
+        if not self.matrix._is_unitary():
+            self.warning = TextView((0, 580), "Transformation ist nicht unitär.", FONT, RED)
+        elif self.letter_input.text == "":
+            self.warning = TextView((0, 580), "Kein Buchstabe eingegeben.", FONT, RED)
+        elif self.name_input.text == "":
+            self.warning = TextView((0, 580), "Kein Name eingegeben.", FONT, RED)
+        else:
+            self.warning = TextView((0, 580), "Sieht gut aus!", FONT, GREEN)
+
 
     def update(self, pos):
         pos = adjust_pos(pos, self.rect)
         self.matrix_editor.update(pos)
+        self.button_save.update(pos)
+        self.button_delete.update(pos)
+        self.button_cancel.update(pos)
 
     def draw(self):
         self.letter_input.draw()
         self.name_input.draw()
         self.matrix_editor.draw()
+        self.button_save.draw()
+        self.button_delete.draw()
+        self.button_cancel.draw()
         self.surf.fill(WHITE)
         self.surf.blit(self.name_input.surf, self.name_input.rect)
         self.surf.blit(self.letter_input.surf, self.letter_input.rect)
         self.surf.blit(self.letter_prompt.surf, self.letter_prompt.pos)
         self.surf.blit(self.matrix_editor.surf, self.matrix_editor.rect)
+        self.surf.blit(self.button_save.surf, self.button_save.rect)
+        self.surf.blit(self.button_delete.surf, self.button_delete.rect)
+        self.surf.blit(self.button_cancel.surf, self.button_cancel.rect)
+        self.surf.blit(self.warning.surf, self.warning.pos)
+        self.surf.blit(self.title.surf, self.title.pos)
 
     def mouse_down(self, pos):
         pos = adjust_pos(pos, self.rect)
         self.letter_input.mouse_down(pos)
         self.name_input.mouse_down(pos)
         self.matrix_editor.mouse_down(pos)
+        self._matrix_updated()
 
     def key_down(self, event):
         self.letter_input.key_down(event)
         self.name_input.key_down(event)
         self.matrix_editor.key_down(event)
+        self._matrix_updated()
 
 
 class Animation:
@@ -171,16 +201,42 @@ class TextInput:
 
 
 class Button:
-    def __init__(self, rect: pygame.Rect, text: str):
+    def __init__(self, rect: pygame.Rect, text: str, color=BLUE):
         self.rect = rect
         self.surf = pygame.Surface(rect.size)
+        self.surf = pygame.Surface(rect.size, pygame.SRCALPHA)
         self.text = text
+        self.text_surf = FONT.render(self.text, True, WHITE)
+        self.w, self.h = self.text_surf.get_width(), self.text_surf.get_height()
+        self.hover = False
+        self.animation = Animation(0, self.w, 700)
+        self.color = color
 
     def draw(self):
-        self.surf.fill(ORANGE)
-        self.text_surf = self.font.render(self.text, True, WHITE)
+        self.surf.fill(WHITE)
+        pygame.draw.rect(self.surf, self.color, (0, 0, self.rect.w,
+                         self.rect.h), border_radius=20)
+        if (v := self.animation.get_value()) > 1.:
+            pygame.draw.line(self.surf, WHITE,
+                            (self.rect.w/2-self.w/2, self.rect.h/2+self.h/2-3),
+                            (self.rect.w/2-self.w/2+v, self.rect.h/2+self.h/2-3),
+                            width=4)
+        self.surf.blit(self.text_surf, (self.rect.w/2 -
+                       self.w/2, self.rect.h/2-self.h/2-2))
 
+    def update(self, pos):
+        if self.point_in(pos):
+            if not self.hover:
+                self.hover = True
+                self.animation.run()
+                
+        else:
+            if self.hover:
+                self.hover = False
+                self.animation.reverse()
+    
     def point_in(self, pos):
+        #pos = adjust_pos(pos, self.rect)
         return self.rect.collidepoint(pos)
 
 
@@ -409,7 +465,7 @@ def map_value(value, istart, istop, ostart, ostop):
     return ostart + (ostop - ostart) * ((value - istart) / (istop - istart))
 
 if __name__ == '__main__':
-    g = CustomGateEditor(pygame.Rect(100, 100, 1000, 700))
+    g = CustomGateEditor(pygame.Rect(100, 100, 1000, 780))
 
     running = True
     while running:
