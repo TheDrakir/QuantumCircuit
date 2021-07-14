@@ -2,13 +2,11 @@ from matplotlib.colors import TwoSlopeNorm
 import pygame
 import json
 import seaborn as sns
-import pyperclip
-import time
 
 from MyMath import my_round
 from Storage import *
 from Circuit import *
-from controls import MatrixEditor
+from controls import MatrixEditor, CopyBox, Message
 
 
 
@@ -223,6 +221,7 @@ class CircuitBuilder:
         self.height = SCREEN_HEIGHT - 2 * self.ytop
         self.ytop_circuit = 400
         self.circuit_width = CIRCUIT_WIDTH
+
         self.ystep = 100
         self.xstep = 100
         self.num_slots = self.circuit_width // self.xstep
@@ -249,6 +248,8 @@ class CircuitBuilder:
         self.copy_boxes = []
         self.copy_boxes.append(CopyBox(self, "copied transformation matrix", self.pretty_matrices[0]))
         self.copy_boxes.append(CopyBox(self, "copied output vector", self.pretty_matrices[1]))
+        self.tick_boxes = []
+        self.tick_boxes.append(TickBox(self, "input values for latex code", [0, 280]))
         self.surf = pygame.Surface((self.width, self.height))
         self.rect = self.surf.get_rect()
         self.rect.topleft = [self.xleft, self.ytop]
@@ -259,6 +260,7 @@ class CircuitBuilder:
         self.grabbed_gate = None
         self.control_grabbed = False
         self.grabbed_box = None
+        self.grabbed_tick = None
         self.control_j = None
         self.gate_i = None
         self.control_offset_start = None
@@ -282,6 +284,8 @@ class CircuitBuilder:
             self.surf.blit(self.vector_viewer.surf, self.vector_viewer.rect)
         for pretty_matrix in self.pretty_matrices:
             self.surf.blit(pretty_matrix.surf, pretty_matrix.rect)
+        for tick_box in self.tick_boxes:
+            self.surf.blit(tick_box.surf, tick_box.rect)
         for row in self.circuitNodes:
             for node in row:
                 if node is not None and node is not BLOCKED and node.main:
@@ -298,7 +302,8 @@ class CircuitBuilder:
 
         if self.message is not None:
             self.message.redraw()
-            self.surf.blit(self.message.surf, self.message.rect)
+            if self.message is not None:
+                self.surf.blit(self.message.surf, self.message.rect)
 
 
     def _get_position(self):
@@ -360,8 +365,11 @@ class CircuitBuilder:
             self.run_circuit()
         if self.grabbed_box is not None:
             self.grabbed_box.copy()
+        if self.grabbed_tick is not None:
+            self.grabbed_tick.deactivate()
         self.grabbed_gate = None
         self.grabbed_box = None
+        self.grabbed_tick = None
 
     def update(self, pos):
         x, y = pos
@@ -386,11 +394,7 @@ class CircuitBuilder:
 
         x, y = pos
         pos = x - self.rect.x, y - self.rect.y
-        if self.grabbed_gate is not None:
-            return
-        if self.grabbed_box is not None:
-            if not self.grabbed_box.point_in(pos):
-                self.grabbed_box = None
+        if self.grabbed_gate is not None or self.grabbed_box is not None or self.grabbed_tick is not None:
             return
         for gate in self.build_gates:
             if gate.point_in(pos):
@@ -404,6 +408,10 @@ class CircuitBuilder:
         for copy_box in self.copy_boxes:
             if copy_box.point_in(pos):
                 self.grabbed_box = copy_box
+        for tick_box in self.tick_boxes:
+            if tick_box.point_in(pos):
+                self.grabbed_tick = tick_box
+                self.grabbed_tick.activate()
         for i, row in enumerate(self.circuitNodes):
             for j, node in enumerate(row):
                 if node is not None and node is not BLOCKED and node.main:
@@ -563,48 +571,63 @@ class PrettyMatrix:
         c = [255 * value for value in self.palette(x)]
         return tuple(c[:3])
 
-class CopyBox:
 
-    def __init__(self, circuit_builder, message, pretty_matrix):
+class TickBox:
+    WIDTH = 300
+    HEIGHT = 100
+    YGAP = 35   
+    T_FONT = pygame.font.SysFont('Arial', 20)
+    def __init__(self, circuit_builder, title, pos = [0, 0]):
         self.circuit_builder = circuit_builder
-        self.message = message
-        self.surf = pygame.Surface((pretty_matrix.width + pretty_matrix.xright, pretty_matrix.height + pretty_matrix.ytop))
+        self.title = title
+        self.surf = pygame.Surface((TickBox.WIDTH, TickBox.HEIGHT))
         self.rect = self.surf.get_rect()
-        self.rect.topleft = pretty_matrix.rect.topleft
-        self.string = ""
+        self.rect.topleft = pos
+        self.active = False
+        self.color = GREY
+        self.text_color = DARK
+        self.tick = False
+        self.string = "psi_i = |0>"
+        self.redraw()
+        
+    def toggle_tick(self):
+        self.tick = not self.tick
+        if not self.tick:
+            self.string =  "psi_i = |0>"
+        else:
+            self.string = "psi_i = alpha_i |0> + beta_i |1>"
 
-    def set_string(self, string):
-        self.string = string
+    def redraw(self):
+        self.surf.fill(WHITE)
+        pygame.draw.rect(self.surf, self.color, (0, TickBox.YGAP, TickBox.WIDTH, TickBox.HEIGHT - TickBox.YGAP))
+        text = TickBox.T_FONT.render(self.string, True, self.text_color)
+        t_width, t_height = text.get_size()
+        self.surf.blit(text, ((TickBox.WIDTH - t_width) / 2, (TickBox.HEIGHT + TickBox.YGAP - t_height) / 2))
+        title = TEXT_FONT.render(self.title, True, DARK)
+        width, height = title.get_size()
+        self.surf.blit(title, ((TickBox.WIDTH - width) // 2, 0))
 
-    def copy(self):
-        pyperclip.copy(self.string)
-        self.circuit_builder.message = Message(self.circuit_builder, self.message, 1)
 
+    def activate(self):
+        if not self.active:
+            self.active = True
+            self.color = DARK
+            self.text_color = WHITE
+            self.redraw()
+
+    def deactivate(self, success = True):
+        if self.active:
+            if success:
+                self.toggle_tick()
+            self.active = False
+            self.color = GREY
+            self.text_color = DARK
+            self.redraw()
 
     def point_in(self, pos: tuple[int, int]) -> bool:
         return self.rect.collidepoint(pos)
 
-
-class Message:
-    SIZE = 100
-    def __init__(self, circuit_builder, string, runtime):
-        self.start = time.time()
-        self.font = pygame.font.SysFont('Arial', Message.SIZE)
-        self.circuit_builder = circuit_builder
-        self.string = string
-        self.runtime = runtime
-        self.surf = pygame.Surface((SCREEN_WIDTH, Message.SIZE))
-        self.rect = self.surf.get_rect()
-        self.rect.topleft = [0, (SCREEN_HEIGHT-Message.SIZE) / 2-100]
-
-        self.surf.fill(WHITE)
-        text = self.font.render(self.string, True, DARK)
-        t_width, _ = text.get_size()
-        self.surf.blit(text, ((SCREEN_WIDTH - t_width) / 2, 0))
-
-
-    def redraw(self):
-        self.surf.set_alpha(255-255*(time.time() - self.start) / self.runtime)
+    
 
 
 

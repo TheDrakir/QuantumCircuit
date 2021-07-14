@@ -3,6 +3,7 @@ from pygame.font import Font
 from pygame.surface import Surface
 from MyMath import my_complex_to_str
 from time import time
+import pyperclip
 
 
 from Storage import *
@@ -431,3 +432,51 @@ if __name__ == '__main__':
         pygame.display.flip()
 
     pygame.quit()
+
+
+class CopyBox:
+
+    def __init__(self, circuit_builder, message, pretty_matrix):
+        self.circuit_builder = circuit_builder
+        self.message = message
+        self.surf = pygame.Surface((pretty_matrix.width + pretty_matrix.xright, pretty_matrix.height + pretty_matrix.ytop))
+        self.rect = self.surf.get_rect()
+        self.rect.topleft = pretty_matrix.rect.topleft
+        self.string = ""
+
+    def set_string(self, string):
+        self.string = string
+
+    def copy(self):
+        pyperclip.copy(self.string)
+        self.circuit_builder.message = Message(self.circuit_builder, self.message, 1)
+
+
+    def point_in(self, pos: tuple[int, int]) -> bool:
+        return self.rect.collidepoint(pos)
+
+
+
+class Message:
+    SIZE = 100
+    def __init__(self, circuit_builder, string, runtime):
+        self.start = time()
+        self.font = pygame.font.SysFont('Arial', Message.SIZE)
+        self.circuit_builder = circuit_builder
+        self.string = string
+        self.runtime = runtime
+        self.surf = pygame.Surface((SCREEN_WIDTH, Message.SIZE))
+        self.rect = self.surf.get_rect()
+        self.rect.topleft = [0, (SCREEN_HEIGHT-Message.SIZE) / 2-100]
+
+        self.surf.fill(WHITE)
+        text = self.font.render(self.string, True, DARK)
+        t_width, _ = text.get_size()
+        self.surf.blit(text, ((SCREEN_WIDTH - t_width) / 2, 0))
+
+
+    def redraw(self):
+        self.surf.set_alpha(255-255*(time() - self.start) / self.runtime)
+        if self.runtime <= time() - self.start:
+            self.circuit_builder.message = None
+            del self
