@@ -6,7 +6,8 @@ import seaborn as sns
 from MyMath import my_round
 from Storage import *
 from Circuit import *
-from controls import MatrixEditor, CopyBox, Message
+from controls import MatrixEditor, Button, CustomGateEditor, Message, CopyBox, adjust_pos
+from GateType import GateType
 
 
 
@@ -227,6 +228,9 @@ class CircuitBuilder:
         self.num_slots = self.circuit_width // self.xstep
 
         self.gate_types = [H, X, Y, Z, CNOT, CZ]
+        self.add_button = Button(pygame.Rect(0, 200, 200, 60), "add gate")
+        self.gate_editor = CustomGateEditor(pygame.Rect(1000, 0, 1000, 1000))
+        self.gate_editor_active = False
 
         # create the gate object for all gate types
         self.build_gates = []
@@ -304,6 +308,11 @@ class CircuitBuilder:
             self.message.redraw()
             if self.message is not None:
                 self.surf.blit(self.message.surf, self.message.rect)
+        self.add_button.draw()
+        self.surf.blit(self.add_button.surf, self.add_button.rect)
+        if self.gate_editor_active:
+            self.gate_editor.draw()
+            self.surf.blit(self.gate_editor.surf, self.gate_editor.rect)
 
 
     def _get_position(self):
@@ -389,53 +398,83 @@ class CircuitBuilder:
                 self.grabbed_gate.update_offset(offset)
                 if not self._valid_position(self.gate_i, self.control_j):
                     self.grabbed_gate.update_offset(old_offset)
+        self.add_button.update(pos)
+        if self.gate_editor_active:
+            self.gate_editor.update(pos)
+    
+    def key_down(self, event):
+        if self.gate_editor_active:
+            self.gate_editor.key_down(event)
 
     def mouse_down(self, pos):
-
         x, y = pos
         pos = x - self.rect.x, y - self.rect.y
-        if self.grabbed_gate is not None or self.grabbed_box is not None or self.grabbed_tick is not None:
-            return
-        for gate in self.build_gates:
-            if gate.point_in(pos):
-                self.grabbed_gate = Gate(self, gate.gate_type, pos=(
-                    gate.rect.x, gate.rect.y + gate.gatey))
-                if gate.control is not None:
-                    self.grabbed_gate.set_control(
-                        Control(), gate.offset, self.ystep)
-                self.grabbed_gate.grab(pos)
+        if not self.gate_editor_active: # or pos[0] < self.gate_editor.rect.x:
+            if self.add_button.point_in(pos):
+                self.gate_editor_active = True
+            if self.gate_editor_active:
+                self.gate_editor.mouse_down(pos)
+            if self.grabbed_gate is not None:
                 return
-        for copy_box in self.copy_boxes:
-            if copy_box.point_in(pos):
-                self.grabbed_box = copy_box
-        for tick_box in self.tick_boxes:
-            if tick_box.point_in(pos):
-                self.grabbed_tick = tick_box
-                self.grabbed_tick.activate()
-        for i, row in enumerate(self.circuitNodes):
-            for j, node in enumerate(row):
-                if node is not None and node is not BLOCKED and node.main:
-                    gate = node.gate
-                    if gate.control is not None and gate.point_in_control(pos):
-                        self.grabbed_gate = gate
-                        self.grabbed_gate.grab(pos)
-                        self._set_overlap(self.grabbed_gate, i, j, None)
-                        self.control_grabbed = True
-                        self.control_j = j
-                        self.control_offset_start = gate.offset
-                        self.gate_i = i
-                        return
-                    elif gate.point_in(pos):
-                        self.grabbed_gate = gate
-                        self.grabbed_gate.grab(pos)
-                        self._set_overlap(self.grabbed_gate, i, j, None)
-                        return
-                
-        if self.matrix_viewer is not None:
-            self.matrix_viewer.mouse_down(pos)
+            if self.grabbed_box is not None:
+                return
+            if self.grabbed_tick is not None:
+                return
+            for gate in self.build_gates:
+                if gate.point_in(pos):
+                    self.grabbed_gate = Gate(self, gate.gate_type, pos=(
+                        gate.rect.x, gate.rect.y + gate.gatey))
+                    if gate.control is not None:
+                        self.grabbed_gate.set_control(
+                            Control(), gate.offset, self.ystep)
+                    self.grabbed_gate.grab(pos)
+                    return
+            for copy_box in self.copy_boxes:
+                if copy_box.point_in(pos):
+                    self.grabbed_box = copy_box
+            for tick_box in self.tick_boxes:
+                if tick_box.point_in(pos):
+                    self.grabbed_tick = tick_box
+                    self.grabbed_tick.activate()
+            for i, row in enumerate(self.circuitNodes):
+                for j, node in enumerate(row):
+                    if node is not None and node is not BLOCKED and node.main:
+                        gate = node.gate
+                        if gate.control is not None and gate.point_in_control(pos):
+                            self.grabbed_gate = gate
+                            self.grabbed_gate.grab(pos)
+                            self._set_overlap(self.grabbed_gate, i, j, None)
+                            self.control_grabbed = True
+                            self.control_j = j
+                            self.control_offset_start = gate.offset
+                            self.gate_i = i
+                            return
+                        elif gate.point_in(pos):
+                            self.grabbed_gate = gate
+                            self.grabbed_gate.grab(pos)
+                            self._set_overlap(self.grabbed_gate, i, j, None)
+                            return
+                    
+            if self.matrix_viewer is not None:
+                self.matrix_viewer.mouse_down(pos)
 
-        if self.vector_viewer is not None:
-            self.vector_viewer.mouse_down(pos)            
+            if self.vector_viewer is not None:
+                self.vector_viewer.mouse_down(pos)     
+        elif self.gate_editor_active:
+            self.gate_editor.mouse_down(pos)
+            pos = adjust_pos(pos, self.gate_editor.rect)
+            if self.gate_editor.button_save.point_in(pos):
+                letter = self.gate_editor.letter_input.text
+                transform = LinearTransformation(self.gate_editor.matrix_editor.values)
+                g = GateType(letter, BLUE, transform)
+                strg._create_constant(g)
+                GATE_TYPES.append(g)
+                self.build_gates.append(Gate(self, g, pos=(100*len(self.gate_types), 100)))
+                self.gate_editor_active = False
+            if self.gate_editor.button_cancel.point_in(pos):
+                self.gate_editor_active = False
+            if self.gate_editor.button_delete.point_in(pos):
+                self.gate_editor_active = False
 
     def serialize(self):
         content = {"qubits": [], "gates": {}}
@@ -482,7 +521,9 @@ class CircuitBuilder:
             current_circuit = Circuit.deserialize()
             linear_transformation = current_circuit.gate()
             self.pretty_matrices[0].set_matrix(linear_transformation.probabilities())
-            out_qubits = linear_transformation * Quantum.zeroQubit(self.active_qubits)
+            if not self.tick_boxes[0].tick:
+                in_qubits = Quantum.zeroQubit(self.active_qubits)
+            out_qubits = linear_transformation * in_qubits
             self.pretty_matrices[1].set_matrix(out_qubits.realArray())
             self.matrix_viewer = MatrixEditor((2**self.active_qubits, 2**self.active_qubits), pygame.Rect(1010, self.ytop, 600, 500), editable=False, values=linear_transformation.array, arrow = True)
             self.matrix_viewer.draw()
@@ -649,18 +690,20 @@ while running:
         elif event.type == pygame.MOUSEBUTTONUP:
             builder.mouse_up()
         elif event.type == pygame.KEYDOWN:
+            builder.key_down(event)
             if event.key == pygame.K_ESCAPE:
                 running = False
-            if event.key == pygame.K_1:
-                builder.toggle_qubit(0)
-            if event.key == pygame.K_2:
-                builder.toggle_qubit(1)
-            if event.key == pygame.K_3:
-                builder.toggle_qubit(2)
-            if event.key == pygame.K_4:
-                builder.toggle_qubit(3)
-            if event.key == pygame.K_5:
-                builder.toggle_qubit(4)
+            if not builder.gate_editor_active:
+                if event.key == pygame.K_1:
+                    builder.toggle_qubit(0)
+                if event.key == pygame.K_2:
+                    builder.toggle_qubit(1)
+                if event.key == pygame.K_3:
+                    builder.toggle_qubit(2)
+                if event.key == pygame.K_4:
+                    builder.toggle_qubit(3)
+                if event.key == pygame.K_5:
+                    builder.toggle_qubit(4)
 
     screen.fill((255, 255, 255))
     builder.update(pygame.mouse.get_pos())
