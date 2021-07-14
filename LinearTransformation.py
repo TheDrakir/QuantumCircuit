@@ -122,10 +122,9 @@ class LinearTransformation:
         string = "\\begin{pmatrix}"
         for row in self.array:
             for element in row:
-                string +=  my_complex_to_latex(element) + " & "
+                string += my_complex_to_latex(element) + " & "
             string = string[:-2] + "\\\\ "
         string = string[:-3] + "\\end{pmatrix}"
-        print(string)
         return string
 
 

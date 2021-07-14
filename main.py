@@ -23,8 +23,8 @@ SCREEN_HEIGHT = 1000
 CIRCUIT_WIDTH = 1000
 
 pygame.display.set_caption("Quantum Circuit Builder")
-#screen = pygame.display.set_mode((1700, 1000))
-screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+screen = pygame.display.set_mode((1700, 1000))
+#screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
 
 # load standard font (can take up to a few seconds)
 FONT = pygame.font.SysFont('Arial', 70)
@@ -247,7 +247,7 @@ class CircuitBuilder:
         self.pretty_matrices.append(PrettyMatrix(self, "std probabilities", 300, 300, [700, self.ytop]))
         self.pretty_matrices.append(PrettyMatrix(self, "output vector", 150, 415, [1050, self.ytop + 360], square = False))
         self.copy_boxes = []
-        self.copy_boxes.append(CopyBox(self, "copied std probabilities", self.pretty_matrices[0]))
+        self.copy_boxes.append(CopyBox(self, "copied transformation matrix", self.pretty_matrices[0]))
         self.copy_boxes.append(CopyBox(self, "copied output vector", self.pretty_matrices[1]))
         self.surf = pygame.Surface((self.width, self.height))
         self.rect = self.surf.get_rect()
@@ -476,10 +476,10 @@ class CircuitBuilder:
             self.pretty_matrices[0].set_matrix(linear_transformation.probabilities())
             out_qubits = linear_transformation * Quantum.zeroQubit(self.active_qubits)
             self.pretty_matrices[1].set_matrix(out_qubits.realArray())
-            self.matrix_viewer = MatrixEditor((2**self.active_qubits, 2**self.active_qubits), pygame.Rect(1010, self.ytop, 600, 500), editable=False, values=linear_transformation.array)
+            self.matrix_viewer = MatrixEditor((2**self.active_qubits, 2**self.active_qubits), pygame.Rect(1010, self.ytop, 600, 500), editable=False, values=linear_transformation.array, arrow = True)
             self.matrix_viewer.draw()
             self.surf.blit(self.matrix_viewer.surf, self.matrix_viewer.rect)
-            self.vector_viewer = MatrixEditor((1, 2**self.active_qubits), pygame.Rect(1210, self.ytop + 360, 200, 500), editable=False, values=out_qubits.complexArray(), vector = True)
+            self.vector_viewer = MatrixEditor((1, 2**self.active_qubits), pygame.Rect(1210, self.ytop + 360, 200, 500), editable=False, values=out_qubits.complexArray(), vector = True, equals=True)
             self.vector_viewer.draw()
             self.surf.blit(self.vector_viewer.surf, self.vector_viewer.rect)
             self.copy_boxes[0].set_string(linear_transformation.latex())

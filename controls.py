@@ -187,7 +187,7 @@ class Button:
 class MatrixEditor:
 
 
-    def __init__(self, size: tuple[int, int], rect: pygame.Rect, editable=True, values=None, vector = False):
+    def __init__(self, size: tuple[int, int], rect: pygame.Rect, editable=True, values=None, vector = False, equals = False, arrow = False):
         self.eq_width = 50
         self.eq_dist = 20
 
@@ -218,6 +218,9 @@ class MatrixEditor:
         self.rect = rect
         self.surf = Surface(self.rect.size)
 
+
+        self.equals = equals
+        self.arrow = arrow
         
 
         self.value_surfs = [[None] * self.width for _ in range(self.height)]
@@ -347,8 +350,11 @@ class MatrixEditor:
         thick = int(max(self.font_size * 0.15, 3))
         x_eq, y_eq = self.eq_rect.topleft
         r_eq, b_eq = self.eq_rect.bottomright
-        pygame.draw.rect(self.surf, DARK, (x_eq, (y_eq+b_eq-thick + self.eq_dist)/2, 0.8*self.eq_width, thick))
-        pygame.draw.rect(self.surf, DARK, (x_eq, (y_eq+b_eq-thick - self.eq_dist)/2, 0.8*self.eq_width, thick))
+        if self.equals:
+            pygame.draw.rect(self.surf, DARK, (x_eq, (y_eq+b_eq-thick + self.eq_dist)/2, 0.8*self.eq_width, thick))
+            pygame.draw.rect(self.surf, DARK, (x_eq, (y_eq+b_eq-thick - self.eq_dist)/2, 0.8*self.eq_width, thick))
+        elif self.arrow:
+            pygame.draw.rect(self.surf, DARK, (x_eq, (y_eq+b_eq-thick)/2, 0.8*self.eq_width, thick))
 
         x, y = self.matrix_rect.topleft
         r, b = self.matrix_rect.bottomright
