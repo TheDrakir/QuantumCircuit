@@ -524,6 +524,8 @@ class CircuitBuilder:
             self.pretty_matrices[0].set_matrix(linear_transformation.probabilities())
             if not self.tick_boxes[0].tick:
                 in_qubits = Quantum.zeroQubit(self.active_qubits)
+            else:
+                in_qubits = Quantum.zeroQubit(self.active_qubits) #Das hier muss noch zur variable werden!!!
             out_qubits = linear_transformation * in_qubits
             self.pretty_matrices[1].set_matrix(out_qubits.realArray())
             self.matrix_viewer = MatrixEditor((2**self.active_qubits, 2**self.active_qubits), pygame.Rect(1360, self.ytop, 600, 500), editable=False, values=linear_transformation.array, arrow = True)
