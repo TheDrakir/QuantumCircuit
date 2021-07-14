@@ -1,4 +1,3 @@
-from matplotlib.colors import TwoSlopeNorm
 import pygame
 import json
 import seaborn as sns
@@ -6,24 +5,21 @@ import seaborn as sns
 from MyMath import my_round
 from Storage import *
 from Circuit import *
-from controls import MatrixEditor, Button, CustomGateEditor, Message, CopyBox, adjust_pos
+from controls import MatrixEditor, Button, CustomGateEditor, CopyBox, adjust_pos
 from GateType import GateType
 
 
 
 pygame.init()
 
-# set file name, which input data will be written to
-INPUT_FILE_NAME = "to_back.json"
 
 # set window size
-SCREEN_WIDTH = 2200
-SCREEN_HEIGHT = 1000
 CIRCUIT_WIDTH = 1000
 
 pygame.display.set_caption("Quantum Circuit Builder")
-screen = pygame.display.set_mode((2200, 1000))
-#screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+#screen = pygame.display.set_mode((1700, 1000))
+screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+SCREEN_WIDTH, SCREEN_HEIGHT = pygame.display.get_surface().get_size()
 
 # load standard font (can take up to a few seconds)
 FONT = pygame.font.SysFont('Arial', 70)
@@ -228,7 +224,7 @@ class CircuitBuilder:
         self.num_slots = self.circuit_width // self.xstep
 
         self.gate_types = GATE_TYPES
-        self.add_button = Button(pygame.Rect(0, 200, 200, 60), "add gate")
+        self.add_button = Button(pygame.Rect(0, 200, 300, 60), "add gate")
         self.gate_editor = CustomGateEditor(pygame.Rect(1000, 0, 1000, 1000))
         self.gate_editor_active = False
 
@@ -304,15 +300,16 @@ class CircuitBuilder:
                 pygame.draw.rect(self.surf, GREY, rect, width=3)
             self.surf.blit(self.grabbed_gate.surf, self.grabbed_gate.rect)
 
-        if self.message is not None:
-            self.message.redraw()
-            if self.message is not None:
-                self.surf.blit(self.message.surf, self.message.rect)
+
         self.add_button.draw()
         self.surf.blit(self.add_button.surf, self.add_button.rect)
         if self.gate_editor_active:
             self.gate_editor.draw()
             self.surf.blit(self.gate_editor.surf, self.gate_editor.rect)
+        if self.message is not None:
+            self.message.redraw()
+            if self.message is not None:
+                self.surf.blit(self.message.surf, self.message.rect)
 
 
     def _get_position(self):
@@ -528,7 +525,7 @@ class CircuitBuilder:
                 in_qubits = Quantum.zeroQubit(self.active_qubits) #Das hier muss noch zur variable werden!!!
             out_qubits = linear_transformation * in_qubits
             self.pretty_matrices[1].set_matrix(out_qubits.realArray())
-            self.matrix_viewer = MatrixEditor((2**self.active_qubits, 2**self.active_qubits), pygame.Rect(1360, self.ytop, 600, 500), editable=False, values=linear_transformation.array, arrow = True)
+            self.matrix_viewer = MatrixEditor((2**self.active_qubits, 2**self.active_qubits), pygame.Rect(1360, self.ytop, 400, 500), editable=False, values=linear_transformation.array, arrow = True)
             self.matrix_viewer.draw()
             self.surf.blit(self.matrix_viewer.surf, self.matrix_viewer.rect)
             self.vector_viewer = MatrixEditor((1, 2**self.active_qubits), pygame.Rect(1210, self.ytop + 360, 200, 500), editable=False, values=out_qubits.complexArray(), vector = True, equals=True)
@@ -675,10 +672,6 @@ class TickBox:
 
 
 
-    
-
-
-
 builder = CircuitBuilder(INPUT_FILE_NAME)
 
 running = True
@@ -716,3 +709,5 @@ while running:
     pygame.display.flip()
 
 pygame.quit()
+
+

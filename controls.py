@@ -12,10 +12,9 @@ pygame.init()
 
 
 # set window size
-SCREEN_WIDTH = 1000
-SCREEN_HEIGHT = 1000
 pygame.display.set_caption("Quantum Circuit Builder")
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+SCREEN_WIDTH, SCREEN_HEIGHT = pygame.display.get_surface().get_size()
 
 # load standard font (can take up to a few seconds)
 
@@ -242,7 +241,6 @@ class Button:
 
 
 class MatrixEditor:
-
 
     def __init__(self, size: tuple[int, int], rect: pygame.Rect, editable=True, values=None, vector = False, equals = False, arrow = False):
         self.eq_width = 50

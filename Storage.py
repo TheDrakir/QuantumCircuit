@@ -4,6 +4,7 @@ from Quantum import Quantum
 from LinearTransformation import LinearTransformation
 from GateType import GateType
 import json
+import sys, os
 
 
 class Storage:
@@ -33,6 +34,21 @@ class Storage:
 
 
 strg = Storage()
+
+
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
+INPUT_FILE_NAME = strg._create_constant(resource_path("to_back.json"))
+GATE_FILE_NAME = strg._create_constant(resource_path("gates.json"))
+
 
 
 # define special qubits
@@ -70,8 +86,11 @@ PINK = strg._create_constant((219, 42, 154))
 
 # define gate types
 
+
+
+
 GATE_TYPES = []
-with open("gates.json", "r") as f:
+with open(GATE_FILE_NAME, "r") as f:
     data = json.load(f)
     for name,value in data.items():
         m = value['matrix']
@@ -98,6 +117,7 @@ with open("gates.json", "r") as f:
 
 
 
+
 def gate_types_to_json():
     d = {}
     for gate_type in GATE_TYPES:
@@ -110,6 +130,6 @@ def gate_types_to_json():
         d[gate_type.name] = {"color": list(gate_type.color),
                              "matrix": array,
                              "control": int(gate_type.control)}
-        with open("gates.json", "w") as f:
+        with open(GATE_FILE_NAME, "w") as f:
             json.dump(d, f, indent=4)
 

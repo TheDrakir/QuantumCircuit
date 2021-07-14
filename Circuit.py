@@ -5,8 +5,6 @@ from LinearTransformation import LinearTransformation
 from Storage import *
 
 
-# set file name of which input data will be read
-INPUT_FILE_NAME = "to_back.json"
 
 
 class Circuit:
