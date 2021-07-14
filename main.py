@@ -70,6 +70,12 @@ class Gate:
         self.redraw()
         self.grabx, self.graby = None, None
 
+    def refresh_pos(self, pos):
+        self.rect.topleft = pos
+        if self.gate_type.control:
+            self.set_control(Control(), -1, self.circuit_builder.ystep)
+        self.redraw()
+
     def set_control(self, control, offset, ystep):
         if control is not None:
             self.control = control
@@ -250,7 +256,6 @@ class CircuitBuilder:
         self.copy_boxes.append(CopyBox(self, "copied transformation matrix", self.pretty_matrices[0]))
         self.copy_boxes.append(CopyBox(self, "copied output vector", self.pretty_matrices[1]))
         self.tick_boxes = []
-        self.tick_boxes.append(TickBox(self, "input values for latex code", [0, 280]))
         self.surf = pygame.Surface((self.width, self.height))
         self.rect = self.surf.get_rect()
         self.rect.topleft = [self.xleft, self.ytop]
@@ -494,7 +499,7 @@ class CircuitBuilder:
                             if gate.gate_type.name == letter:
                                 print("Duplicate letter, cannot add gate.")
                                 return
-                        g = GateType(letter, BLUE, transform)
+                        g = GateType(letter, BLUE, transform, editable = True)
                         strg._create_constant(g)
                         GATE_TYPES.append(g)
                         self.build_gates.append(Gate(self, g, pos=(100*(len(self.gate_types)-1), 100)))
@@ -519,6 +524,8 @@ class CircuitBuilder:
                         GATE_TYPES = GATE_TYPES[:self.gate_editor_index] + GATE_TYPES[self.gate_editor_index+1:]
                         print("top", len(GATE_TYPES))
                         self.build_gates = self.build_gates[:self.gate_editor_index] + self.build_gates[self.gate_editor_index+1:]
+                        for i, build_gate in enumerate(self.build_gates):
+                            build_gate.refresh_pos((100*i, 100))
                         gate_types_to_json(GATE_TYPES=GATE_TYPES)
                         self.run_circuit()
 
@@ -568,10 +575,7 @@ class CircuitBuilder:
             current_circuit = Circuit.deserialize()
             linear_transformation = current_circuit.gate()
             self.pretty_matrices[0].set_matrix(linear_transformation.probabilities())
-            if not self.tick_boxes[0].tick:
-                in_qubits = Quantum.zeroQubit(self.active_qubits)
-            else:
-                in_qubits = Quantum.zeroQubit(self.active_qubits) #Das hier muss noch zur variable werden!!!
+            in_qubits = Quantum.zeroQubit(self.active_qubits)
             out_qubits = linear_transformation * in_qubits
             self.pretty_matrices[1].set_matrix(out_qubits.realArray())
             self.matrix_viewer = MatrixEditor((2**self.active_qubits, 2**self.active_qubits), pygame.Rect(1360, self.ytop, 400, 500), editable=False, values=linear_transformation.array, arrow = True)
@@ -584,6 +588,7 @@ class CircuitBuilder:
             self.copy_boxes[1].set_string(out_qubits.latex())
         else:
             self.pretty_matrices[0].set_matrix([[0]])
+            self.pretty_matrices[1].set_matrix([[0]])
             self.matrix_viewer = None
             self.vector_viewer = None
 
