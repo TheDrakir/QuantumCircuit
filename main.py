@@ -19,12 +19,12 @@ pygame.init()
 INPUT_FILE_NAME = "to_back.json"
 
 # set window size
-SCREEN_WIDTH = 2000
+SCREEN_WIDTH = 2200
 SCREEN_HEIGHT = 1000
 CIRCUIT_WIDTH = 1000
 
 pygame.display.set_caption("Quantum Circuit Builder")
-screen = pygame.display.set_mode((1700, 1000))
+screen = pygame.display.set_mode((2200, 1000))
 #screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
 
 # load standard font (can take up to a few seconds)
@@ -109,7 +109,7 @@ class Gate:
         img = FONT.render(self.gate_type.name, True, WHITE)
         width, height = img.get_size()
 
-        if self.gate_type is CNOT:
+        if self.gate_type is strg['+']:
             pygame.draw.circle(self.surf, self.gate_type.color,
                                (Gate.SIZE/2, self.gatey+Gate.SIZE/2), Gate.SIZE/2)
         else:
@@ -228,7 +228,7 @@ class CircuitBuilder:
         self.xstep = 100
         self.num_slots = self.circuit_width // self.xstep
 
-        self.gate_types = [H, X, Y, Z, CNOT, CZ]
+        self.gate_types = GATE_TYPES
         self.add_button = Button(pygame.Rect(0, 200, 200, 60), "add gate")
         self.gate_editor = CustomGateEditor(pygame.Rect(1000, 0, 1000, 1000))
         self.gate_editor_active = False
@@ -248,7 +248,7 @@ class CircuitBuilder:
                                (i+0.5)-5/2, self.circuit_width, 5)
             self.qubits.append(Qubit(self, i, rect))
         self.pretty_matrices = []
-        self.pretty_matrices.append(PrettyMatrix(self, "std probabilities", 300, 300, [700, self.ytop]))
+        self.pretty_matrices.append(PrettyMatrix(self, "std probabilities", 300, 300, [1050, self.ytop]))
         self.pretty_matrices.append(PrettyMatrix(self, "output vector", 150, 415, [1050, self.ytop + 360], square = False))
         self.copy_boxes = []
         self.copy_boxes.append(CopyBox(self, "copied transformation matrix", self.pretty_matrices[0]))
@@ -457,7 +457,8 @@ class CircuitBuilder:
                 g = GateType(letter, BLUE, transform)
                 strg._create_constant(g)
                 GATE_TYPES.append(g)
-                self.build_gates.append(Gate(self, g, pos=(100*len(self.gate_types), 100)))
+                self.build_gates.append(Gate(self, g, pos=(100*(len(self.gate_types)-1), 100)))
+                gate_types_to_json()
                 self.gate_editor_active = False
             if self.gate_editor.button_cancel.point_in(pos):
                 self.gate_editor_active = False
@@ -511,7 +512,7 @@ class CircuitBuilder:
             self.pretty_matrices[0].set_matrix(linear_transformation.probabilities())
             out_qubits = linear_transformation * Quantum.zeroQubit(self.active_qubits)
             self.pretty_matrices[1].set_matrix(out_qubits.realArray())
-            self.matrix_viewer = MatrixEditor((2**self.active_qubits, 2**self.active_qubits), pygame.Rect(1010, self.ytop, 600, 500), editable=False, values=linear_transformation.array, arrow = True)
+            self.matrix_viewer = MatrixEditor((2**self.active_qubits, 2**self.active_qubits), pygame.Rect(1360, self.ytop, 600, 500), editable=False, values=linear_transformation.array, arrow = True)
             self.matrix_viewer.draw()
             self.surf.blit(self.matrix_viewer.surf, self.matrix_viewer.rect)
             self.vector_viewer = MatrixEditor((1, 2**self.active_qubits), pygame.Rect(1210, self.ytop + 360, 200, 500), editable=False, values=out_qubits.complexArray(), vector = True, equals=True)
